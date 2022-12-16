@@ -165,8 +165,14 @@ class WirelessDataPreProcessor:
     def get_scaler(self):
         return self.__scaler
 
+    def get_x_sequences(self):
+        return self.__x_sequences
+
+    def get_y_sequences(self):
+        return self.__y_sequences
+
     def save_scaler(self, filename="scaler.sav"):
-        filepath = "saved.objects/"+filename
+        filepath = "src/saved.objects/"+filename
         pickle.dump(self.__scaler, open(filepath, "wb"))
 
 
