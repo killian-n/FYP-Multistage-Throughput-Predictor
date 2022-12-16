@@ -1,1 +1,4 @@
 Datasets/Raw/4G_LTE/
+.env
+src/__pycache__/
+src/data_transformation/__pycache__/
