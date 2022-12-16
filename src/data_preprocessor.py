@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pickle
 from sklearn.impute import KNNImputer
 from sklearn.preprocessing import StandardScaler
 pd.options.mode.chained_assignment = None
@@ -164,20 +165,26 @@ class WirelessDataPreProcessor:
     def get_scaler(self):
         return self.__scaler
 
+    def save_scaler(self, filename="scaler.sav"):
+        filepath = "saved.objects/"+filename
+        pickle.dump(self.__scaler, open(filepath, "wb"))
+
 
 if __name__ == "__main__":
 
     # Transform from raw data
-    # raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None)
-    # imputed_data = WirelessDataPreProcessor(raw_data).get_df()
-    # imputed_data.to_csv("Datasets/Transformed/4G_data_ASN.csv", index=False, encoding="utf-8")
+    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None)
+    pre_processor = WirelessDataPreProcessor(raw_data)
+    imputed_data = pre_processor.get_df()
+    pre_processor.save_scaler(filename="scaler_1.sav")
+    imputed_data.to_csv("Datasets/Transformed/4G_data_ASN.csv", index=False, encoding="utf-8")
 
     # import transformed data and create sequences.
-    data = pd.read_csv("Datasets/Transformed/4G_data_ASN.csv", index_col=None, encoding="utf-8")
-    data_processor = WirelessDataPreProcessor(data, manual_mode=True)
-    test_df = data_processor.get_df()
-    test_df = test_df[test_df["session"]==0]
-    x, y = data_processor.create_sequences(dataframe=test_df,
-    exclude_columns=["Timestamp", "CellID", "DL_bitrate", "UL_bitrate"],
-     y_columns=["Average_DL_bitrate", "Average_UL_bitrate"])
-    print(y)
+    # data = pd.read_csv("Datasets/Transformed/4G_data_ASN.csv", index_col=None, encoding="utf-8")
+    # data_processor = WirelessDataPreProcessor(data, manual_mode=True)
+    # test_df = data_processor.get_df()
+    # test_df = test_df[test_df["session"]==0]
+    # x, y = data_processor.create_sequences(dataframe=test_df,
+    # exclude_columns=["Timestamp", "CellID", "DL_bitrate", "UL_bitrate"],
+    #  y_columns=["Average_DL_bitrate", "Average_UL_bitrate"])
+    # print(y)
