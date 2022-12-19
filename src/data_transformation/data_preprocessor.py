@@ -5,7 +5,18 @@ from sklearn.impute import KNNImputer
 from sklearn.preprocessing import StandardScaler
 pd.options.mode.chained_assignment = None
 
-
+##################################################################
+# DEPRECATED
+# WILL BE REMOVING IN FUTURE COMMIT
+#
+# Alot of invalid assumptions including:
+# 1. Assuming preprocessing takes place before train/test split.
+# 2. Including features which are not reported by the device and as such would not appear in
+#    actual real world data.
+# 3. Preforming imputation on seperately, features such as movement_type will not be available for test data.
+# 4. In future projects should preform feature selection before writing any preprocessing code.
+# Rewriting preprocessing code in new file: "preprocessor.py"
+##################################################################
 class WirelessDataPreProcessor:
     def __init__(self, dataframe, is_grouped=True, manual_mode=False):
 
@@ -76,6 +87,16 @@ class WirelessDataPreProcessor:
     def impute_missing_data(self, dataframe):
         # Long, lat positions of the towers get imputed using foward fill
         dataframe[self.__geo_columns] = dataframe[self.__geo_columns].fillna(method="ffill")
+        # Categorical features use most frequent
+        dataframe[self.__categorical_columns] = dataframe[self.__categorical_columns]\
+            .fillna(dataframe[self.__categorical_columns].mode().iloc[0])
+        # One-hot-encode categororical data for KNN imputation
+        categorical_features = self.__categorical_columns+["Timestamp", "session"]
+        cols = [i for i in self.__df.columns if i not in categorical_features]
+        dataframe[cols] = dataframe[cols].astype(float)
+        dataframe = pd.get_dummies(dataframe)
+        self.__categorical_columns = list(set(dataframe.drop(columns=["Timestamp"])).difference(\
+            dataframe[self.__numeric_columns+self.__geo_columns+self.__interest_columns]))
         # Numeric features use the KNNImputer
         scaler = StandardScaler()
         x_data = dataframe[self.__numeric_columns+self.__interest_columns]
@@ -84,12 +105,10 @@ class WirelessDataPreProcessor:
         imputed_normalized_array = imputer.fit_transform(normalized_x_data)
         imputed_array = scaler.inverse_transform(imputed_normalized_array)
         dataframe[self.__numeric_columns+self.__interest_columns] = imputed_array
-        # Categorical features use most frequent
-        dataframe[self.__categorical_columns] = dataframe[self.__categorical_columns]\
-            .fillna(dataframe[self.__categorical_columns].mode().iloc[0])
         return dataframe
 
-    def create_history_column(self, dataframe, no_of_seconds=10):
+    
+    def create_history_column(self, dataframe, no_of_seconds=5):
         for column in self.__interest_columns:
             new_column = "Average_" + column
             history_column = []
@@ -100,6 +119,9 @@ class WirelessDataPreProcessor:
                 history_value = base_column.iloc[:i + 1].sum() / no_of_seconds
                 history_column.append(history_value)
 
+            ## USE INSTANTANEOUS FOR THROUGHPUT
+            ## USE THIS FUNCTION FOR OTHER FEATURES
+            ## CHANGE TO WEIGHTED AVERAGE
             for i in range(no_of_seconds + 1, len(dataframe) + 1):
                 history_value = base_column.iloc[i - no_of_seconds:i].mean()
                 history_column.append(history_value)
