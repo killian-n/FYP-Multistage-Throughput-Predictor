@@ -9,9 +9,12 @@ pd.options.mode.chained_assignment = None
 
 class DataPreProcessor:
     def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univarte_scaler.sav"):
+
+        # Metadata
+        metadata = ["Timestamp", "session", "movement_type"]
         
         # Working dataframes
-        self.__df = dataframe[include_features+predict+["Timestamp", "session", "movement_type"]]
+        self.__df = dataframe[include_features+predict+metadata]
         self.__train = None
         self.__test = None
 
@@ -47,6 +50,10 @@ class DataPreProcessor:
             pass
         self.__df[self.__numeric_features+self.__geo_features] \
             = self.__df[self.__numeric_features+self.__geo_features].astype("float32")
+        if self.__use_predict:
+            numeric_features = self.__numeric_features[:-(len(self.__predict))]
+        new_order = self.__predict + numeric_features + self.__geo_features + self.__categorical_features + metadata
+        self.__df = self.__df.reindex(columns=new_order)
         
         # Geographic features imputed using foward fill
         if self.__geo_features:
@@ -57,22 +64,29 @@ class DataPreProcessor:
 
         # Output variables for use in models
         self.__scaler = scaler
+        self.__scaler_length = 0
         self.__scaler_file_name = scaler_file_name
         self.__x_train= []
         self.__y_train = []
         self.__x_test = []
         self.__y_test = []
+        #labels for basic preditor model
+        self.__y_train_labels = []
+        self.__y_test_labels = []
+
 
         if not manual_mode:
             self.train_test_split()
             if self.__categorical_features:
                 self.one_hot_encode()
-            self.__train = self.impute_and_normalise(dataframe=self.__train)
-            self.__test = self.impute_and_normalise(dataframe=self.__test, test=True, scaler=self.__scaler)
+            self.__train, self.__scaler_length = self.impute_and_normalise(dataframe=self.__train)
+            self.__test = self.impute_and_normalise(dataframe=self.__test, test=True, scaler=self.__scaler)[0]
             self.__train = self.create_averaged_features(dataframe=self.__train)
             self.__test = self.create_averaged_features(dataframe=self.__test)
             self.__x_train, self.__y_train = self.create_sequences(dataframe=self.__train)
             self.__x_test, self.__y_test = self.create_sequences(dataframe=self.__test)
+            self.__y_train_labels = self.create_labels(self.__y_train)
+            self.__y_test_labels = self.create_labels(self.__y_test)
             self.save_scaler()
 
     def train_test_split(self, train_prop=0.8):
@@ -104,16 +118,21 @@ class DataPreProcessor:
             scaler = StandardScaler()
         # Numeric features imputed using KNNImputer
         imputer = KNNImputer(n_neighbors=5)
-        x_data = dataframe[self.__numeric_features+self.__geo_features+self.__categorical_features]
+        if self.__use_predict:
+            x_data = dataframe[self.__predict+self.__numeric_features[:-(len(self.__predict))]+self.__geo_features+self.__categorical_features]
+        else:
+            x_data = dataframe[self.__numeric_features+self.__geo_features+self.__categorical_features]
+        scaler_length = len(x_data.columns)
         normalised_x_data = scaler.fit_transform(x_data)
         new_values = imputer.fit_transform(normalised_x_data)
         if return_true_values:
             new_values = scaler.inverse_transform(new_values)
+            # print("BRUH", new_values)
         dataframe[self.__numeric_features] = new_values
         dataframe[self.__numeric_features].astype("float32")
         if not test:
             self.__scaler = scaler
-        return dataframe
+        return dataframe, scaler_length
 
     def create_averaged_features(self, dataframe, history_window=5):
         potential_features = ["SNR", "CQI", "RSSI", "NRxRSRQ", "NRxRSRP", "RSRP", "RSRQ"]
@@ -140,7 +159,7 @@ class DataPreProcessor:
         numeric_features = self.__numeric_features
         # Checking if feature is used to predict itself
         if self.__use_predict:
-            numeric_features = self.__numeric_features[:-1]
+            numeric_features = self.__numeric_features[:-(len(self.__predict))]
         new_order = self.__predict + numeric_features + self.__geo_features + self.__categorical_features
         for name, group in groups:
             x_sequences = []
@@ -154,11 +173,40 @@ class DataPreProcessor:
             y = y + y_sequences
         return x, y
 
+    def create_labels(self, y_sequences=[]):
+        y_labels = []
+        y_sequences = np.array(y_sequences)
+        for sequence in y_sequences:
+            # adding columns to the np.array to match the shape used in the scaler.
+            diff = self.__scaler_length - sequence.shape[1]
+            if diff > 0:
+                transform = np.zeros((sequence.shape[0],self.__scaler_length))
+                transform[:,:-diff] = sequence
+            else: 
+                transform = sequence
+            transform = self.__scaler.inverse_transform(transform)
+            # FOR NOW ASSUMING DL_bitrate IS THE ONLY FACTOR USED TO LABEL FUTURE THROUGHPUT
+            # ALSO ASSUMES THAT DL_bitrate IS ALWAYS FIRST ITEM IN self.__predict
+            average_throughput = (sum(transform[0])/len(transform[0]))/1000
+            if average_throughput < 1:
+                y_labels.append("low")
+            elif average_throughput > 3:
+                y_labels.append("high")
+            else:
+                y_labels.append("medium")
+        return y_labels
+
     def get_test_sequences(self):
         return self.__x_test, self.__y_test
 
     def get_train_sequences(self):
         return self.__x_train, self.__y_train
+
+    def get_train_labels(self):
+        return self.__y_train_labels
+
+    def get_test_labels(self):
+        return self.__y_test_labels
 
     def save_scaler(self, filename=None):
         if not filename:
@@ -166,10 +214,9 @@ class DataPreProcessor:
         filepath = "src/saved.objects/"+filename
         pickle.dump(self.__scaler, open(filepath, "wb"))
 
-
-
 if __name__ == "__main__":
-    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None)
-    pre_processor = DataPreProcessor(raw_data, manual_mode=False)
+    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None).head(3291)
+    pre_processor = DataPreProcessor(raw_data, manual_mode=False, include_features=["CQI"], predict=["DL_bitrate", "UL_bitrate"])
     x, y = pre_processor.get_test_sequences()
-    print(x[0], y[0])
+    train_labels = pre_processor.get_train_labels()
+    print(train_labels)

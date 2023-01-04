@@ -25,7 +25,3 @@ if __name__ == "__main__":
     raw_df = merge_csv_files(OUTER_FOLDER_PATH)
     merged_file_path = "C:/Users/knola/Desktop/Final Year Project/Datasets/Raw/all_4G_data.csv"
     raw_df.to_csv(merged_file_path, index=False, encoding="UTF-8")
-
-
-
-
