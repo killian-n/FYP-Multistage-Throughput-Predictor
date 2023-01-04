@@ -35,6 +35,3 @@ model.summary()
 
 checkpointer = ModelCheckpoint(filepath='src/saved.objects/univariate.1.hdf5', verbose = 1, save_best_only=True)
 model.fit(train_x, train_y, epochs=10, batch_size=100, validation_split=0.2, verbose=1, callbacks=[checkpointer])
-
-
-
