@@ -12,6 +12,7 @@ class ModelFramework(ABC):
         self._train_y = []
         self._test_x = []
         self._test_y = []
+        self._results
 
     @abstractclassmethod
     def build_model(self):
@@ -25,9 +26,8 @@ class ModelFramework(ABC):
     def train(self):
         pass
 
-    @abstractclassmethod
     def test(self):
-        pass
+        self._results = self._model.evaluate(self._test_x, self._test_y, batch_size=100)
     
     @abstractclassmethod
     def get_preformance_metrics(self):

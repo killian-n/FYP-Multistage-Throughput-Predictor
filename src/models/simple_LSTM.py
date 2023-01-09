@@ -16,8 +16,9 @@ class SimpleLSTM(ModelFramework):
     def __init__(self, raw_data):
         super().__init__(raw_data)
 
-    def pre_process(self):
-        self._preprocessor = DataPreProcessor(self._raw_data)
+    def pre_process(self, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univarte_scaler.sav"):
+        self._preprocessor = DataPreProcessor(self._raw_data, include_features=include_features, predict=predict,
+         use_predict=use_predict, manual_mode=manual_mode, scaler=scaler, scaler_file_name=scaler_file_name)
         self._train_x, self._train_y = self._preprocessor.get_train_sequences()
         self._test_x, self._test_y = self._preprocessor.get_test_sequences()
         self._train_x = np.array(self._train_x)
@@ -33,14 +34,9 @@ class SimpleLSTM(ModelFramework):
         self._model.compile(optimizer="adam", loss="mse", metrics=[tf.keras.metrics.MeanSquaredError(), tf.keras.metrics.MeanAbsoluteError()])
         self._model.summary()
 
-    def train(self):
+    def train(self, epochs=10, batch_size=100, validation_split=0.2):
         self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/SimpleLSTM_univariate.hdf5', verbose = 1, save_best_only=True)
-        self._model.fit(self._train_x, self._train_y, epochs=10, batch_size=100, validation_split=0.2, verbose=1, callbacks=[self._checkpointer])
-    
-    def test(self):
-        results = self._model.evaluate(self._x_test, self._y_test, batch_size=100)
-        print(results)
-        return results
+        self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size, validation_split=validation_split, verbose=1, callbacks=[self._checkpointer])
 
     def get_preformance_metrics(self):
         pass
