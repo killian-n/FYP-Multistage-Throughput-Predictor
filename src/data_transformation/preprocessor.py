@@ -41,8 +41,7 @@ class DataPreProcessor:
         self.__categorical_features = [i for i in self.__categorical_features if i in self.__categorical_features and i in include_features]
 
         # Basic formatting
-        self.__df = self.__df.replace({"-": np.nan})
-        self.__df = self.__df.replace({"": np.nan})
+        self.__df = self.__df.replace({"-": np.nan, "": np.nan})
         try:
             self.__df["Timestamp"] = pd.to_datetime(self.__df["Timestamp"],
              format="%Y.%m.%d_%H.%M.%S")
@@ -70,23 +69,28 @@ class DataPreProcessor:
         self.__y_train = []
         self.__x_test = []
         self.__y_test = []
-        #labels for basic preditor model
+        # Labels for basic predictor model
+        self.__label_dict = {"low": 0, "medium": 1, "high": 2}
+        self.__x_train_labels = []
+        self.__y_train_labels = []
+
         self.__y_train_labels = []
         self.__y_test_labels = []
-
 
         if not manual_mode:
             self.train_test_split()
             if self.__categorical_features:
                 self.one_hot_encode()
-            self.__train, self.__scaler_length = self.impute_and_normalise(dataframe=self.__train)
-            self.__test = self.impute_and_normalise(dataframe=self.__test, test=True, scaler=self.__scaler)[0]
+            self.__train = self.impute_and_normalise(dataframe=self.__train)
+            self.__test = self.impute_and_normalise(dataframe=self.__test, test=True, scaler=self.__scaler)
             self.__train = self.create_averaged_features(dataframe=self.__train)
             self.__test = self.create_averaged_features(dataframe=self.__test)
             self.__x_train, self.__y_train = self.create_sequences(dataframe=self.__train)
             self.__x_test, self.__y_test = self.create_sequences(dataframe=self.__test)
             self.__y_train_labels = self.create_labels(self.__y_train)
             self.__y_test_labels = self.create_labels(self.__y_test)
+            self.__x_train_labels, self.__y_train_labels = self.balance_labels(self.__x_train, self.__y_train_labels)
+            self.__x_test_labels, self.__y_test_labels = self.balance_labels(self.__x_test, self.__y_test_labels)
             self.save_scaler()
 
     def train_test_split(self, train_prop=0.8):
@@ -132,7 +136,8 @@ class DataPreProcessor:
         dataframe[self.__numeric_features].astype("float32")
         if not test:
             self.__scaler = scaler
-        return dataframe, scaler_length
+            self.__scaler_length = scaler_length
+        return dataframe
 
     def create_averaged_features(self, dataframe, history_window=5):
         potential_features = ["SNR", "CQI", "RSSI", "NRxRSRQ", "NRxRSRP", "RSRP", "RSRQ"]
@@ -146,6 +151,7 @@ class DataPreProcessor:
         return dataframe
     
     def create_sequences(self, dataframe=pd.DataFrame(), history_length=10, horizon_length=5):
+        # x, y are lists of dataframes
         x = []
         y = []
         if dataframe.empty:
@@ -173,7 +179,7 @@ class DataPreProcessor:
             y = y + y_sequences
         return x, y
 
-    def create_labels(self, y_sequences=[]):
+    def create_labels(self, y_sequences=[], scaled=True):
         y_labels = []
         y_sequences = np.array(y_sequences)
         for sequence in y_sequences:
@@ -184,17 +190,47 @@ class DataPreProcessor:
                 transform[:,:-diff] = sequence
             else: 
                 transform = sequence
-            transform = self.__scaler.inverse_transform(transform)
+            if scaled:
+                transform = self.__scaler.inverse_transform(transform)
             # FOR NOW ASSUMING DL_bitrate IS THE ONLY FACTOR USED TO LABEL FUTURE THROUGHPUT
             # ALSO ASSUMES THAT DL_bitrate IS ALWAYS FIRST ITEM IN self.__predict
             average_throughput = (sum(transform[0])/len(transform[0]))/1000
             if average_throughput < 1:
-                y_labels.append("low")
+                y_labels.append(self.__label_dict["low"])
             elif average_throughput > 3:
-                y_labels.append("high")
+                y_labels.append(self.__label_dict["high"])
             else:
-                y_labels.append("medium")
+                y_labels.append(self.__label_dict["medium"])
         return y_labels
+
+    def balance_labels(self, x_sequences, labels):
+        low_x = []
+        medium_x = []
+        high_x = []
+        low_y = []
+        medium_y = []
+        high_y = []
+        for sequence, target in zip(x_sequences, labels):
+            if target == 0:
+                low_x.append(sequence)
+                low_y.append(target)
+            elif target == 1:
+                medium_x.append(sequence)
+                medium_y.append(target)
+            else:
+                high_x.append(sequence)
+                high_y.append(target)
+        minimum = min(len(low_y), len(medium_y), len(high_y))
+        print(minimum)
+        low_x = low_x[:minimum]
+        low_y = low_y[:minimum]
+        medium_x = medium_x[:minimum]
+        medium_y = medium_y[:minimum]
+        high_x = high_x[:minimum]
+        high_y = high_y[:minimum]
+        x = low_x + medium_x + high_x
+        y = low_y + medium_y + high_y
+        return x, y
 
     def get_test_sequences(self):
         return self.__x_test, self.__y_test
@@ -203,10 +239,10 @@ class DataPreProcessor:
         return self.__x_train, self.__y_train
 
     def get_train_labels(self):
-        return self.__y_train_labels
+        return self.__x_train_labels, self.__y_train_labels
 
     def get_test_labels(self):
-        return self.__y_test_labels
+        return self.__x_test_labels, self.__y_test_labels
 
     def save_scaler(self, filename=None):
         if not filename:
@@ -215,8 +251,6 @@ class DataPreProcessor:
         pickle.dump(self.__scaler, open(filepath, "wb"))
 
 if __name__ == "__main__":
-    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None).head(3291)
+    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None)
     pre_processor = DataPreProcessor(raw_data, manual_mode=False, include_features=["CQI"], predict=["DL_bitrate", "UL_bitrate"])
     x, y = pre_processor.get_test_sequences()
-    train_labels = pre_processor.get_train_labels()
-    print(train_labels)
