@@ -6,3 +6,4 @@ ToDo.txt
 Research_Papers/
 src/models/__pycache__/
 src/saved.objects/
+src/logs/
