@@ -26,7 +26,14 @@ class SingleSelectionMultistagePredictor(tf.keras.Model):
         self._high_tp_model = None
 
     def __call__(self, x_sequences):
-        pass
+        label = self._label_predictor(x_sequences)
+        if np.argmax(label) == 0:
+            result = self._low_tp_model(x_sequences)
+        elif np.argmax(label) == 1:
+            result = self._medium_tp_model(x_sequences)
+        else:
+            result = self._high_tp_model(x_sequences)
+        return result
 
     def pre_process(self, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="SSMSP_scaler.sav"):
         self._preprocessor = DataPreProcessor(self._raw_data, include_features=include_features, predict=predict,
@@ -69,6 +76,9 @@ class SingleSelectionMultistagePredictor(tf.keras.Model):
         self._medium_tp_model.test()
         self._high_tp_model.test()
         print("we got this far")
+        pass
+
+    def predict(self, x_squences, batch_size=10):
         pass
 
     def get_preformance_metrics(self):
