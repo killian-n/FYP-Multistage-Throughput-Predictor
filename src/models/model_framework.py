@@ -31,6 +31,9 @@ class ModelFramework(ABC):
     def get_preformance_metrics(self):
         pass
 
+    def __call__(self, inputs):
+        return self._model(inputs)
+
     def test(self):
         self._results = self._model.evaluate(self._test_x, self._test_y, batch_size=100)
         print(self._model_name, "\n===============\n",self._model.metrics_names, "\n===============\n" ,self._results, "\n===============\n")
