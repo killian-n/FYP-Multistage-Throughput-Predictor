@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 import pandas as pd
 from keras.callbacks import ModelCheckpoint, TensorBoard
+
 config = configparser.ConfigParser()
 config.read('.env')
 module_path = config['global']['MODULE_PATH']
@@ -11,6 +12,7 @@ sys.path.append(module_path)
 
 from models.model_framework import ModelFramework
 from data_transformation.preprocessor import DataPreProcessor
+from helper_functions.timer import TimingCallback
 
 class SimpleLSTM(ModelFramework):
     def __init__(self, raw_data=pd.DataFrame(), model_name="lstm_univariate"):
@@ -33,10 +35,6 @@ class SimpleLSTM(ModelFramework):
              use_predict=use_predict, manual_mode=manual_mode, scaler=scaler, scaler_file_name=scaler_file_name)
             self._train_x, self._train_y = self._preprocessor.get_train_sequences()
             self._test_x, self._test_y = self._preprocessor.get_test_sequences()
-        self._train_x = np.array(self._train_x)
-        self._train_y = np.array(self._train_y)
-        self._test_x = np.array(self._test_x)
-        self._test_y = np.array(self._test_y)
 
     def build_model(self):
         self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64, input_shape=(self._train_x.shape[1], self._train_x.shape[2]), return_sequences=True))
@@ -45,17 +43,22 @@ class SimpleLSTM(ModelFramework):
         self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(32,return_sequences=False))
         self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.keras.layers.BatchNormalization())
-        self._model.add(tf.keras.layers.Dense(self._train_y.shape[1]))
+        self._model.add(tf.keras.layers.Dense(self._train_y.shape[1], name="OUT_{}".format(self._model_name)))
         self._model.compile(optimizer="adam", loss="mse", metrics=[tf.keras.metrics.MeanAbsoluteError()])
         self._model.summary()
+        self.set_input_shape()
+        self.set_output_shape()
 
     def train(self, epochs=10, batch_size=100, validation_split=0.2):
+        timer = TimingCallback()
         self._tensorboard = TensorBoard(log_dir="src/logs/{}".format(self._model_name))
         self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=True)
-        self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size, validation_split=validation_split, verbose=1, callbacks=[self._checkpointer, self._tensorboard])
+        self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size, validation_split=validation_split, verbose=1, callbacks=[self._checkpointer, self._tensorboard, timer])
+        self._train_time = sum(timer.logs)
 
     def get_preformance_metrics(self):
-        pass
+        return self._train_time
+
 
 
 if __name__ == "__main__":
