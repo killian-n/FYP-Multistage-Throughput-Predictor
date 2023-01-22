@@ -13,6 +13,8 @@ class DataPreProcessor:
         # Metadata
         metadata = ["Timestamp", "session", "movement_type"]
         self.__random_seed = random_seed
+        self.__history_length = 10
+        self.__horizon_length = 5
         
         # Working dataframes
         self.__df = dataframe[include_features+predict+metadata]
@@ -114,8 +116,8 @@ class DataPreProcessor:
             self.__test = self.impute_and_normalise(dataframe=self.__test, test=True, scaler=self.__scaler)
             self.__train = self.create_averaged_features(dataframe=self.__train)
             self.__test = self.create_averaged_features(dataframe=self.__test)
-            self.__x_train, self.__y_train = self.create_sequences(dataframe=self.__train)
-            self.__x_test, self.__y_test = self.create_sequences(dataframe=self.__test)
+            self.__x_train, self.__y_train = self.create_sequences(self.__train, self.__history_length, self.__horizon_length)
+            self.__x_test, self.__y_test = self.create_sequences(self.__test, self.__history_length, self.__horizon_length)
             self.__y_train_labels = self.create_labels(self.__y_train)
             self.__y_test_labels = self.create_labels(self.__y_test)
             self.__x_train_balanced, self.__y_train_balanced = self.balance_labels(self.__x_train, self.__y_train_labels)
@@ -202,7 +204,11 @@ class DataPreProcessor:
         dataframe[features_to_average] = updated_features
         return dataframe
     
-    def create_sequences(self, dataframe=pd.DataFrame(), history_length=10, horizon_length=5):
+    def create_sequences(self, dataframe, history_length, horizon_length):
+        if self.__history_length == 0 and self.__horizon_length == 0:
+            if history_length != self.__history_length or horizon_length != self.__horizon_length:
+                self.__history_length = history_length
+                self.__horizon_length = horizon_length
         # x, y are lists of dataframes
         x = []
         y = []
@@ -224,9 +230,9 @@ class DataPreProcessor:
             y_sequences = []
             group = group.drop(columns=["session"])
             data = group.reindex(columns=new_order)
-            for i in range(history_length, len(data)-horizon_length+1):
-                x_sequences.append(data[i-history_length:i])
-                y_sequences.append(data[self.__predict][i:i+horizon_length])
+            for i in range(self.__history_length, len(data)-self.__horizon_length+1):
+                x_sequences.append(data[i-self.__history_length:i])
+                y_sequences.append(data[self.__predict][i:i+self.__horizon_length])
             x = x + x_sequences
             y = y + y_sequences
         return x, y
@@ -347,37 +353,43 @@ class DataPreProcessor:
             self.__y_test_high = high_y
 
     def get_test_sequences(self):
-        return self.__x_test, self.__y_test
+        return np.array(self.__x_test), np.array(self.__y_test)
 
     def get_train_sequences(self):
-        return self.__x_train, self.__y_train
+        return np.array(self.__x_train), np.array(self.__y_train)
 
     def get_label_predictor_train(self):
-        return self.__x_train_balanced, self.__y_train_balanced
+        return np.array(self.__x_train_balanced), np.array(self.__y_train_balanced, ndmin=2)
 
     def get_label_predictor_test(self):
-        return self.__x_test_balanced, self.__y_test_balanced
+        return np.array(self.__x_test_balanced), np.array(self.__y_test_balanced, ndmin=2)
 
     def get_low_train_sequences(self):
-        return self.__x_train_low, self.__y_train_low
+        return np.array(self.__x_train_low), np.array(self.__y_train_low)
 
     def get_medium_train_sequences(self):
-        return self.__x_train_medium, self.__y_train_medium
+        return np.array(self.__x_train_medium), np.array(self.__y_train_medium)
 
     def get_medium_test_sequences(self):
-        return self.__x_test_medium, self.__y_test_medium
+        return np.array(self.__x_test_medium), np.array(self.__y_test_medium)
 
     def get_high_train_sequences(self):
-        return self.__x_train_high, self.__y_train_high
+        return np.array(self.__x_train_high), np.array(self.__y_train_high)
 
     def get_low_test_sequences(self):
-        return self.__x_test_low, self.__y_test_low
+        return np.array(self.__x_test_low), np.array(self.__y_test_low)
 
     def get_high_test_sequences(self):
-        return self.__x_test_high, self.__y_test_high
+        return np.array(self.__x_test_high), np.array(self.__y_test_high)
 
     def get_label_dict(self):
         return self.__label_dict
+
+    def get_history_length(self):
+        return self.__history_length
+
+    def get_horizon_length(self):
+        return self.__horizon_length
 
     def save_scaler(self, filename=None):
         if not filename:
