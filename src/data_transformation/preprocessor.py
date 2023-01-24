@@ -8,13 +8,13 @@ pd.options.mode.chained_assignment = None
 
 
 class DataPreProcessor:
-    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univarte_scaler.sav", random_seed=130):
+    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univarte_scaler.sav", random_seed=130, history=10, horizon=5):
 
         # Metadata
         metadata = ["Timestamp", "session", "movement_type"]
         self.__random_seed = random_seed
-        self.__history_length = 10
-        self.__horizon_length = 5
+        self.__history_length = history
+        self.__horizon_length = horizon
         
         # Working dataframes
         self.__df = dataframe[include_features+predict+metadata]
@@ -261,7 +261,7 @@ class DataPreProcessor:
                 y_labels.append(self.__label_dict["medium"])
         return y_labels
 
-    def balance_labels(self, x_sequences, labels, train=True, ignore_min_size=False):
+    def balance_labels(self, x_sequences, labels, train=True, ignore_min_size=True):
         # PROBABLY DONT NEED TO BALANCE TEST SET
         low_x = []
         medium_x = []
@@ -282,7 +282,7 @@ class DataPreProcessor:
         minimum = min(len(low_y), len(medium_y), len(high_y))
         if not ignore_min_size:
             if train:
-                if minimum < 25000:
+                if minimum < 22000:
                     print("Minimum no. of examples of a label is", minimum)
                     print("training datasets are too small, rerunning preprocessing for better mix of data.")
                     self.do_all_preprocessing()
@@ -290,7 +290,7 @@ class DataPreProcessor:
                     return self.__x_train_balanced, self.__y_train_balanced
             # Test set is too small.
             else:
-                if minimum < 5000:
+                if minimum < 4000:
                     print("Minimum no. of examples of a label is", minimum)
                     print("test datasets too small, rerunning preprocessing for better mix of data.")
                     self.do_all_preprocessing()

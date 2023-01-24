@@ -1,22 +1,16 @@
 import configparser
 import sys
-import numpy as np
-import tensorflow as tf
 import pandas as pd
-from keras.callbacks import ModelCheckpoint
 config = configparser.ConfigParser()
 config.read('.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 
-from models.simple_LSTM import SimpleLSTM
-from models.label_predictor import LabelPredictor
-from data_transformation.preprocessor import DataPreProcessor
-from single_selection_multistage_predictor import SingleSelectionMultistagePredictor
+from models.single_selection_multistage_predictor import SingleSelectionMultistagePredictor
 
 class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
-    def __init__(self, raw_data, model_name="MSMSP"):
-        super().__init__(raw_data)
+    def __init__(self, raw_data, preprocessor=None, model_name="MSMSP"):
+        super().__init__(raw_data, preprocessor=preprocessor)
         self._model_name = model_name
 
     def __call__(self, x_sequences):

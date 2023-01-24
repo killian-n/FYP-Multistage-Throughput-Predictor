@@ -31,7 +31,7 @@ class ModelFramework(ABC):
         pass
 
     @abstractclassmethod
-    def get_preformance_metrics(self):
+    def get_performance_metrics(self):
         pass
 
     def __call__(self, inputs):

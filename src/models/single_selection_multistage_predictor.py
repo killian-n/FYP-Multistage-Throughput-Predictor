@@ -4,7 +4,6 @@ import numpy as np
 import tensorflow as tf
 import pandas as pd
 from time import time
-from keras.callbacks import ModelCheckpoint
 from keras.utils.layer_utils import count_params
 config = configparser.ConfigParser()
 config.read('.env')
@@ -158,7 +157,7 @@ class SingleSelectionMultistagePredictor:
         self._results = [self._model_name, trainable_params, non_trainable_params, train_time, time_to_predict, mse, mae, average_bias, self._test_y.shape[0]]
 
 
-    def get_preformance_metrics(self):
+    def get_performance_metrics(self):
         return self._results
 
 if __name__ == "__main__":

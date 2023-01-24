@@ -1,6 +1,5 @@
 import configparser
 import sys
-import numpy as np
 import tensorflow as tf
 import pandas as pd
 from keras.callbacks import ModelCheckpoint, TensorBoard
@@ -54,7 +53,7 @@ class LabelPredictor(ModelFramework):
          validation_split=validation_split, verbose=1, callbacks=[self._checkpointer, self._tensorboard, timer])
         self._train_time = sum(timer.logs)
 
-    def get_preformance_metrics(self):
+    def get_performance_metrics(self):
         return self._train_time
 
 if __name__ == "__main__":

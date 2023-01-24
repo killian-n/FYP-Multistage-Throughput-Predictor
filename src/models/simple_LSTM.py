@@ -1,6 +1,5 @@
 import configparser
 import sys
-import numpy as np
 import tensorflow as tf
 import pandas as pd
 from keras.callbacks import ModelCheckpoint, TensorBoard
@@ -37,10 +36,10 @@ class SimpleLSTM(ModelFramework):
             self._test_x, self._test_y = self._preprocessor.get_test_sequences()
 
     def build_model(self):
-        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64, input_shape=(self._train_x.shape[1], self._train_x.shape[2]), return_sequences=True))
+        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(128, input_shape=(self._train_x.shape[1], self._train_x.shape[2]), return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.keras.layers.BatchNormalization())
-        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(32,return_sequences=False))
+        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64,return_sequences=False))
         self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.keras.layers.BatchNormalization())
         self._model.add(tf.keras.layers.Dense(self._train_y.shape[1], name="OUT_{}".format(self._model_name)))
@@ -56,7 +55,7 @@ class SimpleLSTM(ModelFramework):
         self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size, validation_split=validation_split, verbose=1, callbacks=[self._checkpointer, self._tensorboard, timer])
         self._train_time = sum(timer.logs)
 
-    def get_preformance_metrics(self):
+    def get_performance_metrics(self):
         return self._train_time
 
 
