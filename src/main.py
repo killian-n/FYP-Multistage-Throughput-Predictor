@@ -39,6 +39,8 @@ if __name__ == "__main__":
 
     models_to_test = [SSMSP, MSMSP, SSMSP_CQI, MSMSP_CQI, SSMSP_SNR, MSMSP_SNR, SSMSP_h10h10, MSMSP_h10h10, SSMSP_h10h15, MSMSP_h10h15]
 
+    # models_to_test = [SSMSP_CQI]
+
     with open("Datasets/results.csv", "w") as f:
         writer = csv.writer(f)
         writer.writerow(["model_name", "trainable_params", "non_trainable_params", "train_time", "predict_time", "mse", "mae", "average_bias", "test_size"])

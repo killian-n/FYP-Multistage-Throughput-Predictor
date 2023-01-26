@@ -32,25 +32,40 @@ class SingleSelectionMultistagePredictor:
         self._results = []
 
     def __model_selector(self, x_sequence):
-        x_sequence = np.reshape(x_sequence, (1,self._input_shape[1],1))
-        label = self._label_predictor(x_sequence)
-        if np.argmax(label) == 0:
-            result = self._low_tp_model(x_sequence)
-        elif np.argmax(label) == 1:
-            result = self._medium_tp_model(x_sequence)
-        else:
-            result = self._high_tp_model(x_sequence)
-        return result.numpy()
+        try:
+            x_sequence = np.reshape(x_sequence, (1,self._input_shape[1],self._input_shape[2]))
+            label = self._label_predictor(x_sequence)
+            if np.argmax(label) == 0:
+                result = self._low_tp_model(x_sequence)
+            elif np.argmax(label) == 1:
+                result = self._medium_tp_model(x_sequence)
+            else:
+                result = self._high_tp_model(x_sequence)
+            return result.numpy()
+        except:
+            print("X:", x_sequence)
+            print("X shape:", x_sequence.shape)
+            print("Desired shape: (",1, self._input_shape[1], self._input_shape[2], ")")
+            sys.exit()
 
     def __call__(self, x_sequences):
-        results = np.apply_along_axis(self.__model_selector, 1, x_sequences)
-        results = results.reshape((results.shape[0], self._output_shape[1]))
-        return results
+        try:
+            get_prediction = np.vectorize(self.__model_selector, signature="(n,m)->(j, k)")
+            results = get_prediction(x_sequences)
+            results = results.reshape((results.shape[0], self._output_shape[1]))
+            return results
+        except Exception as e:
+            print(x_sequences[0:10])
+            print(x_sequences.shape)
+            print("\n\n=========\n", e)
+            with open("Datasets/debug.txt", "w") as f:
+                f.write(np.array2string(x_sequences, precision=2, separator=","))
+            sys.exit()
 
     def predict(self, x_sequences, no_of_batches=1000):
         if no_of_batches > x_sequences.shape[0]:
             no_of_batches = 1
-        predictions = np.zeros((x_sequences.shape[0], 5))
+        predictions = np.zeros((x_sequences.shape[0], self._output_shape[1]))
         index = 0
         for arr in np.array_split(x_sequences, no_of_batches):
             result = self.__call__(arr)
@@ -125,19 +140,19 @@ class SingleSelectionMultistagePredictor:
         trainable_params = 0
         non_trainable_params = 0
         
-        train_time += self._label_predictor.get_preformance_metrics()
+        train_time += self._label_predictor.get_performance_metrics()
         trainable_params += count_params(self._label_predictor.get_model().trainable_weights)
         non_trainable_params += count_params(self._label_predictor.get_model().non_trainable_weights)
 
-        train_time += self._low_tp_model.get_preformance_metrics()
+        train_time += self._low_tp_model.get_performance_metrics()
         trainable_params += count_params(self._low_tp_model.get_model().trainable_weights)
         non_trainable_params += count_params(self._low_tp_model.get_model().non_trainable_weights)
         
-        train_time += self._medium_tp_model.get_preformance_metrics()
+        train_time += self._medium_tp_model.get_performance_metrics()
         trainable_params += count_params(self._medium_tp_model.get_model().trainable_weights)
         non_trainable_params += count_params(self._medium_tp_model.get_model().non_trainable_weights)
 
-        train_time += self._high_tp_model.get_preformance_metrics()
+        train_time += self._high_tp_model.get_performance_metrics()
         trainable_params += count_params(self._high_tp_model.get_model().trainable_weights)
         non_trainable_params += count_params(self._high_tp_model.get_model().non_trainable_weights)
 
@@ -161,19 +176,39 @@ class SingleSelectionMultistagePredictor:
         return self._results
 
 if __name__ == "__main__":
-    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
-    example = SingleSelectionMultistagePredictor(raw_data)
-    example.pre_process()
-    example.build_and_train()
-    example.test()
+    # raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
+    # example = SingleSelectionMultistagePredictor(raw_data)
+    # example.pre_process()
+    # example.build_and_train()
+    # example.test()
 
     # a = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
     # b = [[4,1], [1,5]]
     # a = np.array(a)
 
-    # a[0:2, :] = np.array([[1,1,1,1], [1,1,1,1]])
+    # # a[0:2, :] = np.array([[1,1,1,1], [1,1,1,1]])
+    a = [[[0, 0, 0, 0], [0, 0, 0, 0]], [[0, 0, 0, 0], [0, 0, 0, 0]], [[0, 0, 0, 0], [0, 0, 0, 0]], [[0, 0, 0, 0], [0, 0, 0, 0]], [[0, 0, 0, 0], [0, 0, 0, 0]]]
+    a = np.array(a)
     # print(a)
+    # print(a.shape)
+    b = np.reshape(a, (5,4,2))
+    # for arr in b:
+    #     print(arr)
+    #     print("====")
+    # print(b)
+    # print(b.shape)
 
+    def test_fuc(a):
+        print(a)
+        print(a.shape)
+        print("======")
+        b = a
+        return b
+
+    f = np.vectorize(test_fuc, signature="(n,m)->(n,m)")
+    k = f(b)
+    print(type(k))
+    # np.apply_along_axis(test_fuc, 1, a)
     # b = np.array(b)
     # c = np.mean((a-b)**2)
     # d = np.power(a-b, 2).mean()

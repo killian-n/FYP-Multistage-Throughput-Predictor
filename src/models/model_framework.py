@@ -50,9 +50,7 @@ class ModelFramework(ABC):
         return self._model
 
     def set_input_shape(self):
-        for layer in self._model.layers:
-            self._input_shape = layer.output_shape
-            break
+        self._input_shape = self._train_x.shape
     
     def set_output_shape(self):
         for layer in self._model.layers:
