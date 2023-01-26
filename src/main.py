@@ -34,8 +34,8 @@ if __name__ == "__main__":
 
     # increasing horizon length to 15
     preprocessor_univariate_h10h15 = DataPreProcessor(raw_data, history=10, horizon=15)
-    SSMSP_h10h15 = SingleSelectionMultistagePredictor(raw_data, preprocessor=preprocessor_univariate_h10h10, model_name="SSMSP_h10h10")
-    MSMSP_h10h15 = MultiSelectionMultistagePredictor(raw_data, preprocessor=preprocessor_univariate_h10h10, model_name="MSMSP_h10h10")
+    SSMSP_h10h15 = SingleSelectionMultistagePredictor(raw_data, preprocessor=preprocessor_univariate_h10h10, model_name="SSMSP_h10h15")
+    MSMSP_h10h15 = MultiSelectionMultistagePredictor(raw_data, preprocessor=preprocessor_univariate_h10h10, model_name="MSMSP_h10h15")
 
     models_to_test = [SSMSP, MSMSP, SSMSP_CQI, MSMSP_CQI, SSMSP_SNR, MSMSP_SNR, SSMSP_h10h10, MSMSP_h10h10, SSMSP_h10h15, MSMSP_h10h15]
 
