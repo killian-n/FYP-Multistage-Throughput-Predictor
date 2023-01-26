@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pickle
 from sklearn.impute import KNNImputer
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 import random
 pd.options.mode.chained_assignment = None
 
@@ -149,28 +149,46 @@ class DataPreProcessor:
             self.__df[self.__numeric_columns+self.__geo_columns]))
     
     def impute_and_normalise(self, dataframe, test=False, scaler=None, return_true_values=False):
+        # IMPORTANT: See Data_Expolration notebook for reasoning on imputation choices
+
+        # Is a scaler provided? If no and this is test data then throw an error.
         if not scaler:
             if test:
                 print("Error, test data must use a prior scaler created on the training data.")
                 return None
-            scaler = StandardScaler()
-        # Numeric features imputed using KNNImputer
-        imputer = KNNImputer(n_neighbors=5)
+            scaler = MinMaxScaler()
+        
+        if "CQI" in self.__numeric_features:
+            dataframe[dataframe["CQI"].isna()]["CQI"] = dataframe["CQI"].min()
+        
+        if "SNR" in self.__numeric_features:
+            dataframe[dataframe["SNR"].isna()]["SNR"] = dataframe["SNR"].min()
+
+        if "RSSI" in self.__numeric_features:
+            dataframe[dataframe["RSSI"].isna()]["RSSI"] = dataframe["RSSI"].min()
+
+        # Checking to see if the y variable is being used to predict itself.
         if self.__use_predict:
             x_data = dataframe[self.__predict+self.__numeric_features[:-(len(self.__predict))]+self.__geo_features+self.__categorical_features]
         else:
             x_data = dataframe[self.__numeric_features+self.__geo_features+self.__categorical_features]
-        scaler_length = len(x_data.columns)
-        normalised_x_data = scaler.fit_transform(x_data)
-        new_values = imputer.fit_transform(normalised_x_data)
+        new_values = scaler.fit_transform(x_data)
+
+        # NRxRSRP and NRxRSRQ require KNN-Imputation.
+        if "NRxRSRP" in self.__numeric_features or "NRxRSRQ" in self.__numeric_features:
+            imputer = KNNImputer(n_neighbors=5)
+            new_values = imputer.fit_transform(new_values)
+
+        # Require the original values
         if return_true_values:
             new_values = scaler.inverse_transform(new_values)
-            # print("BRUH", new_values)
+
+        # Reasssigning scaled and imputed data to the dataframe
         dataframe[self.__numeric_features] = new_values
         dataframe[self.__numeric_features].astype("float32")
         if not test:
             self.__scaler = scaler
-            self.__scaler_length = scaler_length
+            self.__scaler_length = len(x_data.columns)
         return dataframe
 
     # MORE THOUGHT NEEDED ON USAGE
