@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pickle
 from sklearn.impute import KNNImputer
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 import random
 pd.options.mode.chained_assignment = None
 
@@ -52,7 +52,7 @@ class DataPreProcessor:
             pass
         # Potential memory issue with float64
         self.__df[self.__numeric_features+self.__geo_features] \
-            = self.__df[self.__numeric_features+self.__geo_features].astype("float32")
+            = self.__df[self.__numeric_features+self.__geo_features].astype("float64")
         if self.__use_predict:
             numeric_features = self.__numeric_features[:-(len(self.__predict))]
         new_order = self.__predict + numeric_features + self.__geo_features + self.__categorical_features + metadata
@@ -66,6 +66,8 @@ class DataPreProcessor:
             self.__df[self.__categorical_features].fillna(self.__df[self.__categorical_features].mode().iloc[0], inplace=True)
 
         # Output variables for use in models
+        self.__features = []
+
         self.__scaler = scaler
         self.__scaler_length = 0
         self.__scaler_file_name = scaler_file_name
@@ -143,7 +145,7 @@ class DataPreProcessor:
     def one_hot_encode(self):
         categorical_features = self.__categorical_features+["Timestamp"]
         cols = [i for i in self.__df.columns if i not in categorical_features]
-        self.__df[cols] = self.__df[cols].astype("float32")
+        self.__df[cols] = self.__df[cols].astype("float64")
         self.__df = pd.get_dummies(self.__df)
         self.__categorical_features = list(set(self.__df.drop(columns=["Timestamp"])).difference(\
             self.__df[self.__numeric_columns+self.__geo_columns]))
@@ -156,16 +158,17 @@ class DataPreProcessor:
             if test:
                 print("Error, test data must use a prior scaler created on the training data.")
                 return None
-            scaler = MinMaxScaler()
+            # scaler = MinMaxScaler((-1,1))
+            scaler = RobustScaler()
         
         if "CQI" in self.__numeric_features:
-            dataframe[dataframe["CQI"].isna()]["CQI"] = dataframe["CQI"].min()
+            dataframe["CQI"].fillna(dataframe["CQI"].min(), inplace=True)
         
         if "SNR" in self.__numeric_features:
-            dataframe[dataframe["SNR"].isna()]["SNR"] = dataframe["SNR"].min()
+            dataframe["SNR"].fillna(dataframe["SNR"].min(), inplace=True)
 
         if "RSSI" in self.__numeric_features:
-            dataframe[dataframe["RSSI"].isna()]["RSSI"] = dataframe["RSSI"].min()
+            dataframe["RSSI"].fillna(dataframe["RSSI"].min(), inplace=True)
 
         # Checking to see if the y variable is being used to predict itself.
         if self.__use_predict:
@@ -175,7 +178,9 @@ class DataPreProcessor:
         new_values = scaler.fit_transform(x_data)
 
         # NRxRSRP and NRxRSRQ require KNN-Imputation.
-        if "NRxRSRP" in self.__numeric_features or "NRxRSRQ" in self.__numeric_features:
+        require_KNN = ["NRxRSRP", "NRxRSRQ", "RSRP", "RSRQ"]
+        require_KNN = [i for i in require_KNN if i in self.__numeric_features]
+        if require_KNN:
             imputer = KNNImputer(n_neighbors=5)
             new_values = imputer.fit_transform(new_values)
 
@@ -185,7 +190,7 @@ class DataPreProcessor:
 
         # Reasssigning scaled and imputed data to the dataframe
         dataframe[self.__numeric_features] = new_values
-        dataframe[self.__numeric_features].astype("float32")
+        dataframe[self.__numeric_features].astype("float64")
         if not test:
             self.__scaler = scaler
             self.__scaler_length = len(x_data.columns)
@@ -197,7 +202,7 @@ class DataPreProcessor:
             if test:
                 print("Error, test data must use a prior scaler created on the training data.")
                 return None
-            scaler = StandardScaler()
+            scaler = MinMaxScaler()
         if self.__use_predict:
             x_data = dataframe[self.__predict+self.__numeric_features[:-(len(self.__predict))]+self.__geo_features+self.__categorical_features]
         else:
@@ -205,7 +210,7 @@ class DataPreProcessor:
         scaler_length = len(x_data.columns)
         normalised_x_data = scaler.fit_transform(x_data)
         dataframe[self.__numeric_features] = normalised_x_data
-        dataframe[self.__numeric_features].astype("float32")
+        dataframe[self.__numeric_features].astype("float64")
         if not test:
             self.__scaler = scaler
             self.__scaler_length = scaler_length
@@ -248,6 +253,7 @@ class DataPreProcessor:
             y_sequences = []
             group = group.drop(columns=["session"])
             data = group.reindex(columns=new_order)
+            self.__features = list(group.columns)
             for i in range(self.__history_length, len(data)-self.__horizon_length+1):
                 x_sequences.append(data[i-self.__history_length:i])
                 y_sequences.append(data[self.__predict][i:i+self.__horizon_length])
@@ -409,6 +415,9 @@ class DataPreProcessor:
     def get_horizon_length(self):
         return self.__horizon_length
 
+    def get_feature_order(self):
+        return self.__features
+
     def save_scaler(self, filename=None):
         if not filename:
             filename = self.__scaler_file_name
@@ -423,4 +432,14 @@ if __name__ == "__main__":
     for i in [130]:
         print("\n\nrandom seed is", i)
         pre_processor = DataPreProcessor(raw_data, manual_mode=False, include_features=[], predict=["DL_bitrate"], random_seed=i)
+        test = pre_processor.get_low_train_sequences()
+        label1, label2 = pre_processor.get_label_predictor_test()
+        with open("Debug3.txt", "w") as f:
+            f.write(np.array2string(label1, separator=","))
+            print("X Size", label1.shape)
+            f.write(np.array2string(label2, separator=","))
+            print("Y size", label2.shape)
+            print(label1[:10])
+            print("\n====")
+            print(label2[:10])
         # 42 119 130
