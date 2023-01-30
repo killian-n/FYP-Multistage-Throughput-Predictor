@@ -9,7 +9,7 @@ sys.path.append(module_path)
 from models.single_selection_multistage_predictor import SingleSelectionMultistagePredictor
 
 class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
-    def __init__(self, raw_data, preprocessor=None, model_name="MSMSP"):
+    def __init__(self, raw_data=pd.DataFrame(), preprocessor=None, model_name="MSMSP"):
         super().__init__(raw_data, preprocessor=preprocessor)
         self._model_name = model_name
 

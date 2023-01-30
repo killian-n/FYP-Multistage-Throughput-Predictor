@@ -16,7 +16,7 @@ from data_transformation.preprocessor import DataPreProcessor
 
 
 class SingleSelectionMultistagePredictor:
-    def __init__(self, raw_data, preprocessor=None, model_name="SSMSP"):
+    def __init__(self, raw_data=pd.DataFrame(), preprocessor=None, model_name="SSMSP"):
         self._preprocessor = preprocessor
         self._model_name = model_name
         self._raw_data = raw_data
@@ -47,6 +47,9 @@ class SingleSelectionMultistagePredictor:
             print("X shape:", x_sequence.shape)
             print("Desired shape: (",1, self._input_shape[1], self._input_shape[2], ")")
             sys.exit()
+
+    def __split_by_throughput(self, x_sequences):
+        pass
 
     def __call__(self, x_sequences):
         try:

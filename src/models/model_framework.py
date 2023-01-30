@@ -7,6 +7,7 @@ class ModelFramework(ABC):
     def __init__(self):
         self._model = tf.keras.Sequential()
         self._model_name = "DEFAULT_NAME"
+        self._preprocessor = None
         self._checkpointer = None
         self._tensorboard = None
         self._train_x = []
@@ -62,4 +63,13 @@ class ModelFramework(ABC):
 
     def get_output_shape(self):
         return self._output_shape
+
+    def get_train(self):
+        return self._train_x, self._train_y
+
+    def get_test(self):
+        return self._test_x, self._test_y
+
+    def get_preprocessor(self):
+        return self._preprocessor
 
