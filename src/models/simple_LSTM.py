@@ -38,10 +38,10 @@ class SimpleLSTM(ModelFramework):
     def build_model(self):
         self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(128, input_shape=(self._train_x.shape[1], self._train_x.shape[2]), return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.3))
-        self._model.add(tf.keras.layers.BatchNormalization())
-        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64,return_sequences=False))
+        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64,return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.3))
-        self._model.add(tf.keras.layers.BatchNormalization())
+        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(32,return_sequences=False))
+        self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.keras.layers.Dense(self._train_y.shape[1], name="OUT_{}".format(self._model_name)))
         self._model.compile(optimizer="adam", loss="mse", metrics=[tf.keras.metrics.MeanAbsoluteError()])
         self._model.summary()
@@ -57,7 +57,6 @@ class SimpleLSTM(ModelFramework):
 
     def get_performance_metrics(self):
         return self._train_time
-
 
 
 if __name__ == "__main__":
