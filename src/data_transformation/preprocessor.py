@@ -56,7 +56,7 @@ class DataPreProcessor:
         if self.__use_predict:
             numeric_features = self.__numeric_features[:-(len(self.__predict))]
         new_order = self.__predict + numeric_features + self.__geo_features + self.__categorical_features + metadata
-        self.__df = self.__df.reindex(columns=new_order)
+        self.__df = self.__df[new_order]
         
         # Geographic features imputed using foward fill
         if self.__geo_features:
@@ -172,9 +172,10 @@ class DataPreProcessor:
 
         # Checking to see if the y variable is being used to predict itself.
         if self.__use_predict:
-            x_data = dataframe[self.__predict+self.__numeric_features[:-(len(self.__predict))]+self.__geo_features+self.__categorical_features]
+            order = self.__predict+self.__numeric_features[:-(len(self.__predict))]+self.__geo_features+self.__categorical_features
         else:
-            x_data = dataframe[self.__numeric_features+self.__geo_features+self.__categorical_features]
+            order = self.__numeric_features+self.__geo_features+self.__categorical_features
+        x_data = dataframe[order]
         new_values = scaler.fit_transform(x_data)
 
         # NRxRSRP and NRxRSRQ require KNN-Imputation.
@@ -189,8 +190,8 @@ class DataPreProcessor:
             new_values = scaler.inverse_transform(new_values)
 
         # Reasssigning scaled and imputed data to the dataframe
-        dataframe[self.__numeric_features] = new_values
-        dataframe[self.__numeric_features].astype("float64")
+        dataframe[order] = new_values
+        dataframe[order].astype("float64")
         if not test:
             self.__scaler = scaler
             self.__scaler_length = len(x_data.columns)
@@ -252,8 +253,8 @@ class DataPreProcessor:
             x_sequences = []
             y_sequences = []
             group = group.drop(columns=["session"])
-            data = group.reindex(columns=new_order)
-            self.__features = list(group.columns)
+            data = group[new_order]
+            self.__features = list(data.columns)
             for i in range(self.__history_length, len(data)-self.__horizon_length+1):
                 x_sequences.append(data[i-self.__history_length:i])
                 y_sequences.append(data[self.__predict][i:i+self.__horizon_length])
@@ -418,6 +419,15 @@ class DataPreProcessor:
     def get_feature_order(self):
         return self.__features
 
+    def get_train(self):
+        return self.__train
+    
+    def get_test(self):
+        return self.__test
+
+    def get_scaler(self):
+        return self.__scaler
+
     def save_scaler(self, filename=None):
         if not filename:
             filename = self.__scaler_file_name
@@ -431,15 +441,19 @@ if __name__ == "__main__":
     # 130 best
     for i in [130]:
         print("\n\nrandom seed is", i)
-        pre_processor = DataPreProcessor(raw_data, manual_mode=False, include_features=[], predict=["DL_bitrate"], random_seed=i)
-        test = pre_processor.get_low_train_sequences()
-        label1, label2 = pre_processor.get_label_predictor_test()
+        pre_processor = DataPreProcessor(raw_data, manual_mode=True, include_features=["SNR"], predict=["DL_bitrate"], random_seed=i)
+        pre_processor.train_test_split()
+        train = pre_processor.get_train()
+        test = pre_processor.get_test()
+        train = pre_processor.impute_and_normalise(train, return_true_values=True)
+        # test = pre_processor.impute_and_normalise(test, scaler=pre_processor.get_scaler(), test=True, return_true_values=True)
+        x_train_sequences, y_train_sequences = pre_processor.create_sequences(train, 10, 5)
+        print(x_train_sequences[:10])
+
+        x_train_sequences = np.array(x_train_sequences)
         with open("Debug3.txt", "w") as f:
-            f.write(np.array2string(label1, separator=","))
-            print("X Size", label1.shape)
-            f.write(np.array2string(label2, separator=","))
-            print("Y size", label2.shape)
-            print(label1[:10])
+            f.write(np.array2string(x_train_sequences, separator=","))
+            print("X Size", x_train_sequences.shape)
+            # print(x_train_sequences[:10])
             print("\n====")
-            print(label2[:10])
         # 42 119 130
