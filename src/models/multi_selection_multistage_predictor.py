@@ -14,10 +14,15 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         self._model_name = model_name
 
     def __call__(self, x_sequences):
-        label = self._label_predictor(x_sequences)
-        low_result = self._low_tp_model(x_sequences)*label[0][0]
-        medium_result = self._medium_tp_model(x_sequences)*label[0][1]
-        high_result = self._high_tp_model(x_sequences)*label[0][2]
+        label = self._label_predictor(x_sequences).numpy()
+
+        low_labels = label[:,0].reshape((label.shape[0],1))
+        med_labels = label[:,1].reshape((label.shape[0],1))
+        high_labels = label[:,2].reshape((label.shape[0],1))
+
+        low_result = self._low_tp_model(x_sequences).numpy()*low_labels
+        medium_result = self._medium_tp_model(x_sequences).numpy()*med_labels
+        high_result = self._high_tp_model(x_sequences).numpy()*high_labels
         result = low_result + medium_result + high_result
         return result
     
