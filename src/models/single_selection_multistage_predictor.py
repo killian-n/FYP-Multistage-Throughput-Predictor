@@ -16,8 +16,9 @@ from data_transformation.preprocessor import DataPreProcessor
 
 
 class SingleSelectionMultistagePredictor:
-    def __init__(self, raw_data=pd.DataFrame(), preprocessor=None, model_name="SSMSP"):
+    def __init__(self, raw_data=pd.DataFrame(), preprocessor=None, model_name="SSMSP", loss="sparse_categorical_crossentropy"):
         self._preprocessor = preprocessor
+        self._loss = loss
         self._model_name = model_name
         self._raw_data = raw_data
         self._test_x = None
@@ -48,14 +49,42 @@ class SingleSelectionMultistagePredictor:
             print("Desired shape: (",1, self._input_shape[1], self._input_shape[2], ")")
             sys.exit()
 
-    def __split_by_throughput(self, x_sequences):
-        pass
+    def quick_predict(self, x_sequences, no_of_batches=1000):
+        if no_of_batches > x_sequences.shape[0]:
+            no_of_batches = 1
+        print("OUTPUT SHAPE", self._output_shape)
+        predictions = np.zeros((x_sequences.shape[0], self._output_shape[1]))
+        index = 0
+        for arr in np.array_split(x_sequences, no_of_batches):
+            result = self.__call__(arr)
+            predictions[index:result.shape[0]+index, :] = result
+            index += result.shape[0]
+        return predictions
+    
+    def quick_call(self, x_sequences):
+        """Running the sequences through all 3 models is quicker than using
+        __model_selector due to parallelisation."""
+        label = self._label_predictor(x_sequences).numpy()
+        
+        low_labels = label[:,0].reshape((label.shape[0],1))
+        med_labels = label[:,1].reshape((label.shape[0],1))
+        high_labels = label[:,2].reshape((label.shape[0],1))
+
+        low_result = self._low_tp_model(x_sequences).numpy()*low_labels
+        medium_result = self._medium_tp_model(x_sequences).numpy()*med_labels
+        high_result = self._high_tp_model(x_sequences).numpy()*high_labels
+        result = low_result + medium_result + high_result
+        return result
+
 
     def __call__(self, x_sequences):
         try:
             get_prediction = np.vectorize(self.__model_selector, signature="(n,m)->(j, k)")
             results = get_prediction(x_sequences)
-            results = results.reshape((results.shape[0], self._output_shape[1]))
+            if len(self._output_shape) < 3:
+                results = results.reshape((results.shape[0], self._output_shape[1]))
+            else:
+                results = results.reshape((results.shape[0], self._output_shape[1], self._output_shape[2]))
             return results
         except Exception as e:
             print(x_sequences[0:10])
@@ -68,6 +97,7 @@ class SingleSelectionMultistagePredictor:
     def predict(self, x_sequences, no_of_batches=1000):
         if no_of_batches > x_sequences.shape[0]:
             no_of_batches = 1
+        print("OUTPUT SHAPE", self._output_shape)
         predictions = np.zeros((x_sequences.shape[0], self._output_shape[1]))
         index = 0
         for arr in np.array_split(x_sequences, no_of_batches):
@@ -85,7 +115,7 @@ class SingleSelectionMultistagePredictor:
     def build_and_train(self, epochs=10, batch_size=100, validation_split=0.2):
         self._label_predictor = LabelPredictor(model_name=self._model_name+"_label_predictor")
         self._label_predictor.pre_process(preprocessor=self._preprocessor)
-        self._label_predictor.build_model()
+        self._label_predictor.build_model(loss=self._loss)
         self._label_predictor.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
         self._low_tp_model = SimpleLSTM(model_name="{}_low".format(self._model_name))
@@ -160,12 +190,12 @@ class SingleSelectionMultistagePredictor:
         non_trainable_params += count_params(self._high_tp_model.get_model().non_trainable_weights)
 
         # Individual Tests
-        self._label_predictor.test()
-        self._low_tp_model.test()
-        self._medium_tp_model.test()
-        self._high_tp_model.test()
+        # self._label_predictor.test()
+        # self._low_tp_model.test()
+        # self._medium_tp_model.test()
+        # self._high_tp_model.test()
         predict_start = time()
-        predicted_y = self.predict(self._test_x)
+        predicted_y = self.quick_predict(self._test_x)
         time_to_predict = time()-predict_start
         ## TOO BIG TO FIT IN MEMORY 
         ## WRITE FUNCTION TO COMPUTE PIECE WISE
@@ -190,27 +220,29 @@ if __name__ == "__main__":
     # a = np.array(a)
 
     # # a[0:2, :] = np.array([[1,1,1,1], [1,1,1,1]])
-    a = [[[0, 0, 0, 0], [0, 0, 0, 0]], [[0, 0, 0, 0], [0, 0, 0, 0]], [[0, 0, 0, 0], [0, 0, 0, 0]], [[0, 0, 0, 0], [0, 0, 0, 0]], [[0, 0, 0, 0], [0, 0, 0, 0]]]
+    a = [[[1, 0, 0, 0], [1, 0, 0, 0]], [[1, 0, 0, 0], [1, 0, 0, 0]], [[1, 0, 0, 0], [1, 0, 0, 0]], [[1, 0, 0, 0], [2, 0, 0, 0]], [[1, 0, 0, 0], [0, 0, 0, 0]]]
     a = np.array(a)
     # print(a)
-    # print(a.shape)
-    b = np.reshape(a, (5,4,2))
+    b = a.reshape((5,4,2))
+    print(a.T.flatten())
+
+    # print(b[:,:,0])
     # for arr in b:
     #     print(arr)
     #     print("====")
     # print(b)
     # print(b.shape)
 
-    def test_fuc(a):
-        print(a)
-        print(a.shape)
-        print("======")
-        b = a
-        return b
+    # def test_fuc(a):
+    #     print(a)
+    #     print(a.shape)
+    #     print("======")
+    #     b = a
+    #     return b
 
-    f = np.vectorize(test_fuc, signature="(n,m)->(n,m)")
-    k = f(b)
-    print(type(k))
+    # f = np.vectorize(test_fuc, signature="(n,m)->(n,m)")
+    # k = f(b)
+    # print(type(k))
     # np.apply_along_axis(test_fuc, 1, a)
     # b = np.array(b)
     # c = np.mean((a-b)**2)

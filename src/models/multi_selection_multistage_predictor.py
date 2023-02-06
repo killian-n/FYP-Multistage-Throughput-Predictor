@@ -9,9 +9,10 @@ sys.path.append(module_path)
 from models.single_selection_multistage_predictor import SingleSelectionMultistagePredictor
 
 class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
-    def __init__(self, raw_data=pd.DataFrame(), preprocessor=None, model_name="MSMSP"):
+    def __init__(self, raw_data=pd.DataFrame(), preprocessor=None, model_name="MSMSP", loss="categorical_crossentropy"):
         super().__init__(raw_data, preprocessor=preprocessor)
         self._model_name = model_name
+        self._loss = loss
 
     def __call__(self, x_sequences):
         label = self._label_predictor(x_sequences).numpy()

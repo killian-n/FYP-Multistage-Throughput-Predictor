@@ -30,7 +30,7 @@ class LabelPredictor(ModelFramework):
         self._train_x, self._train_y = self._preprocessor.get_label_predictor_train()
         self._test_x, self._test_y = self._preprocessor.get_label_predictor_test()
 
-    def build_model(self):
+    def build_model(self, loss="categorical_crossentropy"):
         self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64, input_shape=(self._train_x.shape[1:]), return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.keras.layers.BatchNormalization())
@@ -40,7 +40,7 @@ class LabelPredictor(ModelFramework):
         self._model.add(tf.keras.layers.Dense(32))
         self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.keras.layers.Dense(3, activation="softmax"))
-        self._model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
+        self._model.compile(optimizer="adam", loss=loss, metrics=["accuracy"])
         self._model.summary()
         self.set_input_shape()
         self.set_output_shape()
