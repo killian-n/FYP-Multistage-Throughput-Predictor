@@ -107,13 +107,15 @@ class DataPreProcessor:
         self.__y_test_balanced = []
 
         if not manual_mode:
-            self.do_all_preprocessing()
-
-    def do_all_preprocessing(self):
             self.train_test_split()
+            self.do_all_preprocessing(self.__train, self.__test)
+
+    def do_all_preprocessing(self, train, test):
             if self.__categorical_features:
                 self.one_hot_encode()
                 print("Categorical Features Included!!")
+            self.__train = train
+            self.__test = test
             self.__train = self.impute_and_normalise(dataframe=self.__train)
             self.__test = self.impute_and_normalise(dataframe=self.__test, test=True, scaler=self.__scaler)
             self.__train = self.create_averaged_features(dataframe=self.__train)
@@ -310,7 +312,8 @@ class DataPreProcessor:
                 if minimum < 22000:
                     print("Minimum no. of examples of a label is", minimum)
                     print("training datasets are too small, rerunning preprocessing for better mix of data.")
-                    self.do_all_preprocessing()
+                    self.train_test_split()
+                    self.do_all_preprocessing(self.__train, self.__test)
                     # Above function will continue to be run until values below meet the criteria.
                     return self.__x_train_balanced, self.__y_train_balanced
             # Test set is too small.
@@ -318,7 +321,8 @@ class DataPreProcessor:
                 if minimum < 4000:
                     print("Minimum no. of examples of a label is", minimum)
                     print("test datasets too small, rerunning preprocessing for better mix of data.")
-                    self.do_all_preprocessing()
+                    self.train_test_split()
+                    self.do_all_preprocessing(self.__train, self.__test)
                     return self.__x_test_balanced, self.__y_test_balanced
         low_x = low_x[:minimum]
         low_y = low_y[:minimum]
@@ -428,6 +432,12 @@ class DataPreProcessor:
     def get_scaler(self):
         return self.__scaler
 
+    def set_train(self, train_df=pd.DataFrame()):
+        self.__train = train_df
+
+    def set_test(self, test_df=pd.DataFrame()):
+        self.__test = test_df
+
     def save_scaler(self, filename=None):
         if not filename:
             filename = self.__scaler_file_name
@@ -448,12 +458,13 @@ if __name__ == "__main__":
         train = pre_processor.impute_and_normalise(train, return_true_values=True)
         # test = pre_processor.impute_and_normalise(test, scaler=pre_processor.get_scaler(), test=True, return_true_values=True)
         x_train_sequences, y_train_sequences = pre_processor.create_sequences(train, 10, 5)
-        print(x_train_sequences[:10])
-
         x_train_sequences = np.array(x_train_sequences)
+        print(x_train_sequences[0])
+        print("=======")
+        k = x_train_sequences[:,:,0][0]
+        print(k)
         with open("Debug3.txt", "w") as f:
-            f.write(np.array2string(x_train_sequences, separator=","))
+            f.write(np.array2string(k, separator=","))
             print("X Size", x_train_sequences.shape)
             # print(x_train_sequences[:10])
-            print("\n====")
         # 42 119 130
