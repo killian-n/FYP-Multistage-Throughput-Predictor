@@ -13,10 +13,11 @@ from data_transformation.preprocessor import DataPreProcessor
 from helper_functions.timer import TimingCallback
 
 class LabelPredictor(ModelFramework):
-    def __init__(self, raw_data=pd.DataFrame(), model_name="label_predictor_univariate"):
+    def __init__(self, raw_data=pd.DataFrame(), model_name="label_predictor_univariate", sparse=False):
         super().__init__()
         self._raw_data = raw_data
         self._model_name = model_name
+        self._sparse = sparse
 
     def pre_process(self, preprocessor=None, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None):
         if preprocessor:
@@ -29,6 +30,9 @@ class LabelPredictor(ModelFramework):
         # Basic formatting
         self._train_x, self._train_y = self._preprocessor.get_label_predictor_train()
         self._test_x, self._test_y = self._preprocessor.get_label_predictor_test()
+        if self._sparse:
+            self._train_y = self._train_y.T
+            self._test_y = self._test_y.T
 
     def build_model(self, loss="categorical_crossentropy"):
         self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64, input_shape=(self._train_x.shape[1:]), return_sequences=True))

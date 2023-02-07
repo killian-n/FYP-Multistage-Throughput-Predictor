@@ -8,13 +8,14 @@ pd.options.mode.chained_assignment = None
 
 
 class DataPreProcessor:
-    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univarte_scaler.sav", random_seed=130, history=10, horizon=5):
+    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univarte_scaler.sav", random_seed=130, history=10, horizon=5, sparse=False):
 
         # Metadata
         metadata = ["Timestamp", "session", "movement_type"]
         self.__random_seed = random_seed
         self.__history_length = history
         self.__horizon_length = horizon
+        self.__sparse = sparse
         
         # Working dataframes
         self.__df = dataframe[include_features+predict+metadata]
@@ -93,6 +94,7 @@ class DataPreProcessor:
 
         # Labels for basic predictor model
         self.__label_dict = {"low": (1,0,0), "medium": (0,1,0), "high": (0,0,1)}
+        self.__sparse_label_dict = {"low":0, "medium": 1, "high": 2}
 
         # Train
         self.__y_train_labels = []
@@ -107,10 +109,11 @@ class DataPreProcessor:
         self.__y_test_balanced = []
 
         if not manual_mode:
+            random.seed(self.__random_seed)
             self.train_test_split()
-            self.do_all_preprocessing(self.__train, self.__test)
+            self.do_all_preprocessing(self.__train, self.__test, sparse=sparse)
 
-    def do_all_preprocessing(self, train, test):
+    def do_all_preprocessing(self, train, test, sparse=False):
             if self.__categorical_features:
                 self.one_hot_encode()
                 print("Categorical Features Included!!")
@@ -122,18 +125,17 @@ class DataPreProcessor:
             self.__test = self.create_averaged_features(dataframe=self.__test)
             self.__x_train, self.__y_train = self.create_sequences(self.__train, self.__history_length, self.__horizon_length)
             self.__x_test, self.__y_test = self.create_sequences(self.__test, self.__history_length, self.__horizon_length)
-            self.__y_train_labels = self.create_labels(self.__y_train)
-            self.__y_test_labels = self.create_labels(self.__y_test)
-            self.__x_train_balanced, self.__y_train_balanced = self.balance_labels(self.__x_train, self.__y_train_labels)
-            self.__x_test_balanced, self.__y_test_balanced = self.balance_labels(self.__x_test, self.__y_test_labels, train=False)
-            self.separate_by_label(train=True)
-            self.separate_by_label(train=False)
+            self.__y_train_labels = self.create_labels(self.__y_train, sparse=sparse)
+            self.__y_test_labels = self.create_labels(self.__y_test, sparse=sparse)
+            self.__x_train_balanced, self.__y_train_balanced = self.balance_labels(self.__x_train, self.__y_train_labels, sparse=sparse, ignore_min_size=False)
+            self.__x_test_balanced, self.__y_test_balanced = self.balance_labels(self.__x_test, self.__y_test_labels, train=False, ignore_min_size=False, sparse=sparse)
+            self.separate_by_label(train=True, sparse=sparse)
+            self.separate_by_label(train=False, sparse=sparse)
             self.save_scaler()
 
     def train_test_split(self, train_prop=0.8):
         no_of_traces = self.__df["session"].max()+1
         train_size = round(no_of_traces*train_prop)
-        random.seed(self.__random_seed)
         sample = random.sample(range(no_of_traces), train_size)
         train = pd.DataFrame()
         for i in sample:
@@ -264,9 +266,14 @@ class DataPreProcessor:
             y = y + y_sequences
         return x, y
 
-    def create_labels(self, y_sequences=[], scaled=True):
+    def create_labels(self, y_sequences=[], scaled=True, sparse=False):
         y_labels = []
         y_sequences = np.array(y_sequences)
+        if sparse:
+            label_dict = self.__sparse_label_dict
+        else:
+            label_dict = self.__label_dict
+
         for sequence in y_sequences:
             # adding columns to the np.array to match the shape used in the scaler.
             diff = self.__scaler_length - sequence.shape[1]
@@ -281,14 +288,14 @@ class DataPreProcessor:
             # ALSO ASSUMES THAT DL_bitrate IS ALWAYS FIRST ITEM IN self.__predict
             average_throughput = (sum(transform[0])/len(transform[0]))/1000
             if average_throughput < 1:
-                y_labels.append(self.__label_dict["low"])
-            elif average_throughput > 3:
-                y_labels.append(self.__label_dict["high"])
+                y_labels.append(label_dict["low"])
+            elif average_throughput > 5:
+                y_labels.append(label_dict["high"])
             else:
-                y_labels.append(self.__label_dict["medium"])
+                y_labels.append(label_dict["medium"])
         return y_labels
 
-    def balance_labels(self, x_sequences, labels, train=True, ignore_min_size=True):
+    def balance_labels(self, x_sequences, labels, train=True, ignore_min_size=True, sparse=False):
         # PROBABLY DONT NEED TO BALANCE TEST SET
         low_x = []
         medium_x = []
@@ -296,24 +303,38 @@ class DataPreProcessor:
         low_y = []
         medium_y = []
         high_y = []
-        for sequence, target in zip(x_sequences, labels):
-            if target[0] == 1:
-                low_x.append(sequence)
-                low_y.append(target)
-            elif target[1] == 1:
-                medium_x.append(sequence)
-                medium_y.append(target)
-            else:
-                high_x.append(sequence)
-                high_y.append(target)
+
+        if sparse:
+            for sequence, target in zip(x_sequences, labels):
+                if target == 0:
+                    low_x.append(sequence)
+                    low_y.append(target)
+                elif target == 1:
+                    medium_x.append(sequence)
+                    medium_y.append(target)
+                else:
+                    high_x.append(sequence)
+                    high_y.append(target)
+        else:
+            for sequence, target in zip(x_sequences, labels):
+                if target[0] == 1:
+                    low_x.append(sequence)
+                    low_y.append(target)
+                elif target[1] == 1:
+                    medium_x.append(sequence)
+                    medium_y.append(target)
+                else:
+                    high_x.append(sequence)
+                    high_y.append(target)
         minimum = min(len(low_y), len(medium_y), len(high_y))
+        
         if not ignore_min_size:
             if train:
-                if minimum < 22000:
+                if minimum < 18000:
                     print("Minimum no. of examples of a label is", minimum)
                     print("training datasets are too small, rerunning preprocessing for better mix of data.")
                     self.train_test_split()
-                    self.do_all_preprocessing(self.__train, self.__test)
+                    self.do_all_preprocessing(self.__train, self.__test, sparse=self.__sparse)
                     # Above function will continue to be run until values below meet the criteria.
                     return self.__x_train_balanced, self.__y_train_balanced
             # Test set is too small.
@@ -322,7 +343,7 @@ class DataPreProcessor:
                     print("Minimum no. of examples of a label is", minimum)
                     print("test datasets too small, rerunning preprocessing for better mix of data.")
                     self.train_test_split()
-                    self.do_all_preprocessing(self.__train, self.__test)
+                    self.do_all_preprocessing(self.__train, self.__test, sparse=self.__sparse)
                     return self.__x_test_balanced, self.__y_test_balanced
         low_x = low_x[:minimum]
         low_y = low_y[:minimum]
@@ -334,17 +355,23 @@ class DataPreProcessor:
         y = low_y + medium_y + high_y
         return x, y
 
-    def separate_by_label(self, train=True):
+    def separate_by_label(self, train=True, sparse=False):
         low_x = []
         medium_x = []
         high_x = []
         low_y = []
         medium_y = []
         high_y = []
-        label_dict = {}
-        for key in self.__label_dict:
-            val = self.__label_dict[key]
-            label_dict[val] = key
+        reverse_label_dict = {}
+        if sparse:
+            label_dict = self.__sparse_label_dict
+        else:
+            label_dict = self.__label_dict
+
+
+        for key in label_dict:
+            val = label_dict[key]
+            reverse_label_dict[val] = key
 
         if train:
             x_sequences = self.__x_train
@@ -356,10 +383,10 @@ class DataPreProcessor:
             labels = self.__y_test_labels
 
         for i in range(len(labels)):
-            if label_dict[labels[i]] == "low":
+            if reverse_label_dict[labels[i]] == "low":
                 low_x.append(x_sequences[i])
                 low_y.append(y_sequences[i])
-            elif label_dict[labels[i]] == "medium":
+            elif reverse_label_dict[labels[i]] == "medium":
                 medium_x.append(x_sequences[i])
                 medium_y.append(y_sequences[i])
             else:
@@ -368,10 +395,13 @@ class DataPreProcessor:
 
         if train:
             self.__x_train_low = low_x
+            print("LOW x train", np.array(self.__x_train_low).shape)
             self.__y_train_low = low_y
             self.__x_train_medium = medium_x
+            print("Medium x train", np.array(self.__x_train_medium).shape)
             self.__y_train_medium = medium_y
             self.__x_train_high = high_x
+            print("High x train", np.array(self.__x_train_high).shape)
             self.__y_train_high = high_y
         else:
             self.__x_test_low = low_x
@@ -431,6 +461,9 @@ class DataPreProcessor:
 
     def get_scaler(self):
         return self.__scaler
+
+    def get_df(self):
+        return self.__df
 
     def set_train(self, train_df=pd.DataFrame()):
         self.__train = train_df

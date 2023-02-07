@@ -52,11 +52,10 @@ class SingleSelectionMultistagePredictor:
     def quick_predict(self, x_sequences, no_of_batches=1000):
         if no_of_batches > x_sequences.shape[0]:
             no_of_batches = 1
-        print("OUTPUT SHAPE", self._output_shape)
         predictions = np.zeros((x_sequences.shape[0], self._output_shape[1]))
         index = 0
         for arr in np.array_split(x_sequences, no_of_batches):
-            result = self.__call__(arr)
+            result = self.quick_call(arr)
             predictions[index:result.shape[0]+index, :] = result
             index += result.shape[0]
         return predictions
@@ -97,7 +96,6 @@ class SingleSelectionMultistagePredictor:
     def predict(self, x_sequences, no_of_batches=1000):
         if no_of_batches > x_sequences.shape[0]:
             no_of_batches = 1
-        print("OUTPUT SHAPE", self._output_shape)
         predictions = np.zeros((x_sequences.shape[0], self._output_shape[1]))
         index = 0
         for arr in np.array_split(x_sequences, no_of_batches):
@@ -107,13 +105,22 @@ class SingleSelectionMultistagePredictor:
         return predictions
 
     def pre_process(self, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="SSMSP_scaler.sav"):
+        if self._loss == "sparse_categorical_crossentropy":
+            sparse=True
+        else:
+            sparse=False
         if not self._preprocessor:
             self._preprocessor = DataPreProcessor(self._raw_data, include_features=include_features, predict=predict,
-                use_predict=use_predict, manual_mode=manual_mode, scaler=scaler, scaler_file_name=scaler_file_name)
+                use_predict=use_predict, manual_mode=manual_mode, scaler=scaler, scaler_file_name=scaler_file_name, sparse=sparse)
         self._test_x, self._test_y = self._preprocessor.get_test_sequences()
 
     def build_and_train(self, epochs=10, batch_size=100, validation_split=0.2):
-        self._label_predictor = LabelPredictor(model_name=self._model_name+"_label_predictor")
+
+        if self._loss == "sparse_categorical_crossentropy":
+            sparse=True
+        else:
+            sparse=False
+        self._label_predictor = LabelPredictor(model_name=self._model_name+"_label_predictor", sparse=sparse)
         self._label_predictor.pre_process(preprocessor=self._preprocessor)
         self._label_predictor.build_model(loss=self._loss)
         self._label_predictor.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
@@ -125,6 +132,7 @@ class SingleSelectionMultistagePredictor:
 
         self._medium_tp_model = SimpleLSTM(model_name="{}_medium".format(self._model_name))
         self._medium_tp_model.pre_process(preprocessed=True, train=self._preprocessor.get_medium_train_sequences(), test=self._preprocessor.get_medium_test_sequences())
+
         self._medium_tp_model.build_model()
         self._medium_tp_model.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
@@ -209,22 +217,24 @@ class SingleSelectionMultistagePredictor:
         return self._results
 
 if __name__ == "__main__":
-    # raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
-    # example = SingleSelectionMultistagePredictor(raw_data)
-    # example.pre_process()
-    # example.build_and_train()
-    # example.test()
+    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
+    example = SingleSelectionMultistagePredictor(raw_data)
+    example.pre_process()
+    example.build_and_train()
+    example.test()
+    b = example.get_performance_metrics()
+    print(b)
 
     # a = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
     # b = [[4,1], [1,5]]
     # a = np.array(a)
 
     # # a[0:2, :] = np.array([[1,1,1,1], [1,1,1,1]])
-    a = [[[1, 0, 0, 0], [1, 0, 0, 0]], [[1, 0, 0, 0], [1, 0, 0, 0]], [[1, 0, 0, 0], [1, 0, 0, 0]], [[1, 0, 0, 0], [2, 0, 0, 0]], [[1, 0, 0, 0], [0, 0, 0, 0]]]
-    a = np.array(a)
-    # print(a)
-    b = a.reshape((5,4,2))
-    print(a.T.flatten())
+    # a = [[[1, 0, 0, 0], [1, 0, 0, 0]], [[1, 0, 0, 0], [1, 0, 0, 0]], [[1, 0, 0, 0], [1, 0, 0, 0]], [[1, 0, 0, 0], [2, 0, 0, 0]], [[1, 0, 0, 0], [0, 0, 0, 0]]]
+    # a = np.array(a)
+    # # print(a)
+    # b = a.reshape((5,4,2))
+    # print(a.T.flatten())
 
     # print(b[:,:,0])
     # for arr in b:

@@ -33,3 +33,5 @@ if __name__ == "__main__":
     example.pre_process()
     example.build_and_train()
     example.test()
+    b = example.get_performance_metrics()
+    print(b)
