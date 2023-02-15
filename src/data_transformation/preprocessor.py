@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pickle
+import csv
 from sklearn.impute import KNNImputer
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 import random
@@ -233,18 +234,20 @@ class DataPreProcessor:
         return dataframe
     
     def create_sequences(self, dataframe, history_length, horizon_length):
-        if self.__history_length == 0 and self.__horizon_length == 0:
-            if history_length != self.__history_length or horizon_length != self.__horizon_length:
-                self.__history_length = history_length
-                self.__horizon_length = horizon_length
+        self.__history_length = history_length
+        self.__horizon_length = horizon_length
         # x, y are lists of dataframes
         x = []
         y = []
+        #create copy
         if dataframe.empty:
             dataframe = self.__df.copy()
+        # drop metadata
         dataframe = dataframe.drop(columns=["movement_type", "Timestamp"])
+        # group by traces
         try:
             groups = dataframe.groupby("session")
+        # if only 1 trace was provided it may not include the session column
         except Exception as e:
             dataframe["session"] = 0
             groups = dataframe.groupby("session")
@@ -252,7 +255,9 @@ class DataPreProcessor:
         # Checking if feature is used to predict itself
         if self.__use_predict:
             numeric_features = self.__numeric_features[:-(len(self.__predict))]
+        # ordering the columns
         new_order = self.__predict + numeric_features + self.__geo_features + self.__categorical_features
+
         for name, group in groups:
             x_sequences = []
             y_sequences = []
@@ -327,7 +332,14 @@ class DataPreProcessor:
                     high_x.append(sequence)
                     high_y.append(target)
         minimum = min(len(low_y), len(medium_y), len(high_y))
-        
+
+        # COMMENT IN WHEN USING potential_splits.py
+        # OTHERWISE COMMENT OUT
+        # with open("Datasets/train_test_analysis/sequence_balance_h{}h{}.csv".format(self.__history_length, self.__horizon_length), "a", newline="") as f:
+        #     writer = csv.writer(f)
+        #     writer.writerow([self.__df["session"].max(), len(low_x), len(medium_x), len(high_x)])
+        #======================================================================================================================
+
         if not ignore_min_size:
             if train:
                 if minimum < 18000:
@@ -345,6 +357,7 @@ class DataPreProcessor:
                     self.train_test_split()
                     self.do_all_preprocessing(self.__train, self.__test, sparse=self.__sparse)
                     return self.__x_test_balanced, self.__y_test_balanced
+        
         low_x = low_x[:minimum]
         low_y = low_y[:minimum]
         medium_x = medium_x[:minimum]
@@ -479,25 +492,13 @@ class DataPreProcessor:
 
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None)
-    potential_seeds = [42, 119, 130, 155, 173]
-    # check to 150
-    # 130 best
-    for i in [130]:
-        print("\n\nrandom seed is", i)
-        pre_processor = DataPreProcessor(raw_data, manual_mode=True, include_features=["SNR"], predict=["DL_bitrate"], random_seed=i)
-        pre_processor.train_test_split()
-        train = pre_processor.get_train()
-        test = pre_processor.get_test()
-        train = pre_processor.impute_and_normalise(train, return_true_values=True)
-        # test = pre_processor.impute_and_normalise(test, scaler=pre_processor.get_scaler(), test=True, return_true_values=True)
-        x_train_sequences, y_train_sequences = pre_processor.create_sequences(train, 10, 5)
-        x_train_sequences = np.array(x_train_sequences)
-        print(x_train_sequences[0])
-        print("=======")
-        k = x_train_sequences[:,:,0][0]
-        print(k)
-        with open("Debug3.txt", "w") as f:
-            f.write(np.array2string(k, separator=","))
-            print("X Size", x_train_sequences.shape)
-            # print(x_train_sequences[:10])
-        # 42 119 130
+    history = 20
+    horizon = 10
+    for i in range(raw_data["session"].max()+1):
+        print("Processing Session:", i)
+        pre_processor = DataPreProcessor(raw_data[raw_data["session"]==i], manual_mode=True)
+        data = pre_processor.impute_and_normalise(pre_processor.get_df())
+        x, y = pre_processor.create_sequences(data, history, horizon)
+        y_labels = pre_processor.create_labels(y)
+        x_balanced, y_balanced = pre_processor.balance_labels(x, y_labels)
+
