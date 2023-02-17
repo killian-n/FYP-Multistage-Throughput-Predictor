@@ -5,11 +5,13 @@ import csv
 from sklearn.impute import KNNImputer
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 import random
+import json
+from prettytable import PrettyTable
 pd.options.mode.chained_assignment = None
 
 
 class DataPreProcessor:
-    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univarte_scaler.sav", random_seed=130, history=10, horizon=5, sparse=False):
+    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univarte_scaler.sav", random_seed=130, history=10, horizon=5, sparse=False, create_train_test_split=False):
 
         # Metadata
         metadata = ["Timestamp", "session", "movement_type"]
@@ -17,6 +19,7 @@ class DataPreProcessor:
         self.__history_length = history
         self.__horizon_length = horizon
         self.__sparse = sparse
+        self.__create_train_test_split = create_train_test_split
         
         # Working dataframes
         self.__df = dataframe[include_features+predict+metadata]
@@ -111,13 +114,11 @@ class DataPreProcessor:
 
         if not manual_mode:
             random.seed(self.__random_seed)
+            self.one_hot_encode()
             self.train_test_split()
             self.do_all_preprocessing(self.__train, self.__test, sparse=sparse)
 
     def do_all_preprocessing(self, train, test, sparse=False):
-            if self.__categorical_features:
-                self.one_hot_encode()
-                print("Categorical Features Included!!")
             self.__train = train
             self.__test = test
             self.__train = self.impute_and_normalise(dataframe=self.__train)
@@ -128,32 +129,100 @@ class DataPreProcessor:
             self.__x_test, self.__y_test = self.create_sequences(self.__test, self.__history_length, self.__horizon_length)
             self.__y_train_labels = self.create_labels(self.__y_train, sparse=sparse)
             self.__y_test_labels = self.create_labels(self.__y_test, sparse=sparse)
-            self.__x_train_balanced, self.__y_train_balanced = self.balance_labels(self.__x_train, self.__y_train_labels, sparse=sparse, ignore_min_size=False)
-            self.__x_test_balanced, self.__y_test_balanced = self.balance_labels(self.__x_test, self.__y_test_labels, train=False, ignore_min_size=False, sparse=sparse)
+            self.__x_train_balanced, self.__y_train_balanced = self.balance_labels(self.__x_train, self.__y_train_labels, sparse=sparse, ignore_min_size=True)
+            self.__x_test_balanced, self.__y_test_balanced = self.balance_labels(self.__x_test, self.__y_test_labels, train=False, ignore_min_size=True, sparse=sparse)
             self.separate_by_label(train=True, sparse=sparse)
             self.separate_by_label(train=False, sparse=sparse)
             self.save_scaler()
 
     def train_test_split(self, train_prop=0.8):
-        no_of_traces = self.__df["session"].max()+1
-        train_size = round(no_of_traces*train_prop)
-        sample = random.sample(range(no_of_traces), train_size)
-        train = pd.DataFrame()
-        for i in sample:
-            trace = self.__df[self.__df["session"]==i]
-            train = pd.concat([train,trace], axis=0)
-        self.__train = train
-        self.__test = self.__df.drop(self.__train.index)
+        try:
+            potential_splits = pd.read_csv("Datasets/train_test_analysis/train_test_splits_h{}h{}.csv".format(self.__history_length, self.__horizon_length), index_col=None)
+        except Exception as e:
+            for i in range(self.__df["session"].max()+1):
+                print("Processing Session:", i)
+                pre_processor = DataPreProcessor(self.__df[self.__df["session"]==i], manual_mode=True, create_train_test_split=True)
+                data = pre_processor.impute_and_normalise(pre_processor.get_df())
+                x, y = pre_processor.create_sequences(data, self.__history_length, self.__horizon_length)
+                y_labels = pre_processor.create_labels(y)
+                x_balanced, y_balanced = pre_processor.balance_labels(x, y_labels)
+            self.__generate_potential_splits("Datasets/train_test_analysis/sequence_balance_h{}h{}.csv".format(self.__history_length, self.__horizon_length),
+             outfile="Datasets/train_test_analysis/train_test_splits_h{}h{}.csv".format(self.__history_length, self.__horizon_length), train_prop=train_prop)
+            self.train_test_split(train_prop=train_prop)
 
-    # TODO : Handle the situation where train and test have different categorical features,
-    #        as sequences must be consistent in length and column position
+        potential_splits = potential_splits.sort_values(by="distribution_difference")
+        selected_train_test_split = potential_splits.iloc[0]
+        train_traces = json.loads(selected_train_test_split["train_traces"])
+        test_traces = json.loads(selected_train_test_split["test_traces"])
+        self.__train = self.__df[self.__df["session"].isin(train_traces)]
+        self.__test = self.__df[self.__df["session"].isin(test_traces)]
+        table = PrettyTable()
+        table.field_names = potential_splits.drop(columns=["train_traces", "test_traces"]).columns.to_list()
+        table.add_row(selected_train_test_split.drop(labels=["train_traces", "test_traces"]).to_list())
+        print("This is the selected Train/Test Split:")
+        print(table)
+            
+    def __generate_potential_splits(self, infile="", outfile="", max_shuffle=10000, train_prop=0.8):
+        data = pd.read_csv(infile, index_col=None)
+        data.columns = ["session", "low", "medium", "high"]
+
+        all_train_traces = []
+        all_test_traces = []
+        all_train_low = []
+        all_test_low = []
+        all_train_medium = []
+        all_test_medium = []
+        all_train_high = []
+        all_test_high = []
+
+        for i in range(max_shuffle):
+            train = data.sample(frac=train_prop)
+            test = data.drop(train.index)
+            train_traces = train["session"].tolist()    
+            test_traces = test["session"].tolist()
+
+            train_low = train["low"].sum()/data["low"].sum()
+            train_medium = train["medium"].sum()/data["medium"].sum()
+            train_high = train["high"].sum()/data["high"].sum()
+
+            test_low = test["low"].sum()/data["low"].sum()
+            test_medium = test["medium"].sum()/data["medium"].sum()
+            test_high = test["high"].sum()/data["high"].sum()
+
+            all_train_traces.append(train_traces)
+            all_train_low.append(train_low)
+            all_train_medium.append(train_medium)
+            all_train_high.append(train_high)
+
+            all_test_traces.append(test_traces)
+            all_test_low.append(test_low)
+            all_test_medium.append(test_medium)
+            all_test_high.append(test_high)
+
+        out_df = pd.DataFrame()
+        out_df["train_traces"] = pd.Series(all_train_traces)
+        out_df["train_low"] = all_train_low
+        out_df["train_medium"] = all_train_medium
+        out_df["train_high"] = all_train_high
+        out_df["test_traces"] = pd.Series(all_test_traces)
+        out_df["test_low"] = all_test_low
+        out_df["test_medium"] = all_test_medium
+        out_df["test_high"] = all_test_high
+
+        out_df["diff1"] = out_df["train_low"] - out_df["train_medium"]
+        out_df["diff1"] = out_df["diff1"].abs()
+        out_df["diff2"] = out_df["train_low"] - out_df["train_high"]
+        out_df["diff2"] = out_df["diff2"].abs()
+        out_df["diff3"] = out_df["train_medium"] - out_df["train_high"]
+        out_df["diff3"] = out_df["diff3"].abs()
+        out_df["distribution_difference"] = out_df["diff1"] + out_df["diff2"] + out_df["diff3"]
+        out_df.drop(columns=["diff1", "diff2", "diff3"], inplace=True)
+        out_df.to_csv(outfile, index=False)
+
     def one_hot_encode(self):
-        categorical_features = self.__categorical_features+["Timestamp"]
-        cols = [i for i in self.__df.columns if i not in categorical_features]
-        self.__df[cols] = self.__df[cols].astype("float64")
-        self.__df = pd.get_dummies(self.__df)
-        self.__categorical_features = list(set(self.__df.drop(columns=["Timestamp"])).difference(\
-            self.__df[self.__numeric_columns+self.__geo_columns]))
+        self.__df = pd.get_dummies(self.__df.drop(columns=["movement_type"]))
+        self.__categorical_features = list(set(self.__df.drop(columns=["Timestamp", "session"])).difference(\
+            self.__df[self.__numeric_features+self.__geo_features]))
     
     def impute_and_normalise(self, dataframe, test=False, scaler=None, return_true_values=False):
         # IMPORTANT: See Data_Expolration notebook for reasoning on imputation choices
@@ -181,7 +250,11 @@ class DataPreProcessor:
         else:
             order = self.__numeric_features+self.__geo_features+self.__categorical_features
         x_data = dataframe[order]
-        new_values = scaler.fit_transform(x_data)
+        # checking to see if scaler already trained.
+        if not test:
+            new_values = scaler.fit_transform(x_data)
+        else:
+            new_values = scaler.transform(x_data)
 
         # NRxRSRP and NRxRSRQ require KNN-Imputation.
         require_KNN = ["NRxRSRP", "NRxRSRQ", "RSRP", "RSRQ"]
@@ -196,30 +269,10 @@ class DataPreProcessor:
 
         # Reasssigning scaled and imputed data to the dataframe
         dataframe[order] = new_values
-        dataframe[order].astype("float64")
+        dataframe[order]
         if not test:
             self.__scaler = scaler
             self.__scaler_length = len(x_data.columns)
-        return dataframe
-
-    # MORE THOUGHT NEEDED ON USAGE
-    def scale(self, dataframe, test=False, scaler=None):
-        if not scaler:
-            if test:
-                print("Error, test data must use a prior scaler created on the training data.")
-                return None
-            scaler = MinMaxScaler()
-        if self.__use_predict:
-            x_data = dataframe[self.__predict+self.__numeric_features[:-(len(self.__predict))]+self.__geo_features+self.__categorical_features]
-        else:
-            x_data = dataframe[self.__numeric_features+self.__geo_features+self.__categorical_features]
-        scaler_length = len(x_data.columns)
-        normalised_x_data = scaler.fit_transform(x_data)
-        dataframe[self.__numeric_features] = normalised_x_data
-        dataframe[self.__numeric_features].astype("float64")
-        if not test:
-            self.__scaler = scaler
-            self.__scaler_length = scaler_length
         return dataframe
 
     def create_averaged_features(self, dataframe, history_window=5):
@@ -243,7 +296,7 @@ class DataPreProcessor:
         if dataframe.empty:
             dataframe = self.__df.copy()
         # drop metadata
-        dataframe = dataframe.drop(columns=["movement_type", "Timestamp"])
+        dataframe = dataframe.drop(columns=["Timestamp"])
         # group by traces
         try:
             groups = dataframe.groupby("session")
@@ -257,7 +310,6 @@ class DataPreProcessor:
             numeric_features = self.__numeric_features[:-(len(self.__predict))]
         # ordering the columns
         new_order = self.__predict + numeric_features + self.__geo_features + self.__categorical_features
-
         for name, group in groups:
             x_sequences = []
             y_sequences = []
@@ -289,9 +341,9 @@ class DataPreProcessor:
                 transform = sequence
             if scaled:
                 transform = self.__scaler.inverse_transform(transform)
-            # FOR NOW ASSUMING DL_bitrate IS THE ONLY FACTOR USED TO LABEL FUTURE THROUGHPUT
-            # ALSO ASSUMES THAT DL_bitrate IS ALWAYS FIRST ITEM IN self.__predict
-            average_throughput = (sum(transform[0])/len(transform[0]))/1000
+            # # FOR NOW ASSUMING DL_bitrate IS THE ONLY FACTOR USED TO LABEL FUTURE THROUGHPUT
+            # # ALSO ASSUMES THAT DL_bitrate IS ALWAYS FIRST ITEM IN self.__predict
+            average_throughput = (sum(transform)/len(transform))/1000
             if average_throughput < 1:
                 y_labels.append(label_dict["low"])
             elif average_throughput > 5:
@@ -333,12 +385,11 @@ class DataPreProcessor:
                     high_y.append(target)
         minimum = min(len(low_y), len(medium_y), len(high_y))
 
-        # COMMENT IN WHEN USING potential_splits.py
-        # OTHERWISE COMMENT OUT
-        # with open("Datasets/train_test_analysis/sequence_balance_h{}h{}.csv".format(self.__history_length, self.__horizon_length), "a", newline="") as f:
-        #     writer = csv.writer(f)
-        #     writer.writerow([self.__df["session"].max(), len(low_x), len(medium_x), len(high_x)])
-        #======================================================================================================================
+        if self.__create_train_test_split:
+            with open("Datasets/train_test_analysis/sequence_balance_h{}h{}.csv".format(self.__history_length, self.__horizon_length), "a", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow([self.__df["session"].max(), len(low_x), len(medium_x), len(high_x)])
+        # ======================================================================================================================
 
         if not ignore_min_size:
             if train:
@@ -358,12 +409,13 @@ class DataPreProcessor:
                     self.do_all_preprocessing(self.__train, self.__test, sparse=self.__sparse)
                     return self.__x_test_balanced, self.__y_test_balanced
         
-        low_x = low_x[:minimum]
-        low_y = low_y[:minimum]
-        medium_x = medium_x[:minimum]
-        medium_y = medium_y[:minimum]
-        high_x = high_x[:minimum]
-        high_y = high_y[:minimum]
+        # low_x = low_x[:minimum]
+        # low_y = low_y[:minimum]
+        # medium_x = medium_x[:minimum]
+        # medium_y = medium_y[:minimum]
+        # high_x = high_x[:minimum]
+        # high_y = high_y[:minimum]
+        # print("Low", len(low_x), "Med", len(medium_x), "High", len(high_x))
         x = low_x + medium_x + high_x
         y = low_y + medium_y + high_y
         return x, y
@@ -380,7 +432,6 @@ class DataPreProcessor:
             label_dict = self.__sparse_label_dict
         else:
             label_dict = self.__label_dict
-
 
         for key in label_dict:
             val = label_dict[key]
@@ -492,13 +543,16 @@ class DataPreProcessor:
 
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None)
-    history = 20
-    horizon = 10
-    for i in range(raw_data["session"].max()+1):
-        print("Processing Session:", i)
-        pre_processor = DataPreProcessor(raw_data[raw_data["session"]==i], manual_mode=True)
-        data = pre_processor.impute_and_normalise(pre_processor.get_df())
-        x, y = pre_processor.create_sequences(data, history, horizon)
-        y_labels = pre_processor.create_labels(y)
-        x_balanced, y_balanced = pre_processor.balance_labels(x, y_labels)
+    pre_processor = DataPreProcessor(raw_data)
+
+
+    # history = 20
+    # horizon = 10
+    # for i in range(raw_data["session"].max()+1):
+    #     print("Processing Session:", i)
+    #     pre_processor = DataPreProcessor(raw_data[raw_data["session"]==i], manual_mode=True)
+    #     data = pre_processor.impute_and_normalise(pre_processor.get_df())
+    #     x, y = pre_processor.create_sequences(data, history, horizon)
+    #     y_labels = pre_processor.create_labels(y)
+    #     x_balanced, y_balanced = pre_processor.balance_labels(x, y_labels)
 
