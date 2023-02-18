@@ -7,6 +7,7 @@ from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 import random
 import json
 from prettytable import PrettyTable
+import sys
 pd.options.mode.chained_assignment = None
 
 
@@ -341,9 +342,11 @@ class DataPreProcessor:
                 transform = sequence
             if scaled:
                 transform = self.__scaler.inverse_transform(transform)
-            # # FOR NOW ASSUMING DL_bitrate IS THE ONLY FACTOR USED TO LABEL FUTURE THROUGHPUT
-            # # ALSO ASSUMES THAT DL_bitrate IS ALWAYS FIRST ITEM IN self.__predict
-            average_throughput = (sum(transform)/len(transform))/1000
+            print(transform[:,0])
+            average_throughput = (sum(transform[:,0])/len(transform[:,0]))/1000
+            print("Average tp", average_throughput)
+            sys.exit()
+
             if average_throughput < 1:
                 y_labels.append(label_dict["low"])
             elif average_throughput > 5:
@@ -543,7 +546,10 @@ class DataPreProcessor:
 
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None)
-    pre_processor = DataPreProcessor(raw_data)
+    # pre_processor = DataPreProcessor(raw_data)
+    pre_processor = DataPreProcessor(raw_data, manual_mode=False, scaler_file_name="base_model_multivariate_scaler",
+     include_features=["CQI", "RSRQ","State", "NRxRSRQ", "Longitude", "Latitude", "Speed"], history=10, horizon=5)
+    
 
 
     # history = 20
