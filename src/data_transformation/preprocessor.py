@@ -12,13 +12,12 @@ pd.options.mode.chained_assignment = None
 
 
 class DataPreProcessor:
-    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univarte_scaler.sav", history=10, horizon=5, sparse=False, create_train_test_split=False):
+    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univarte_scaler.sav", history=10, horizon=5, create_train_test_split=False):
 
         # Metadata
         metadata = ["Timestamp", "session", "movement_type"]
         self.__history_length = history
         self.__horizon_length = horizon
-        self.__sparse = sparse
         self.__create_train_test_split = create_train_test_split
         
         # Working dataframes
@@ -102,22 +101,24 @@ class DataPreProcessor:
 
         # Train
         self.__y_train_labels = []
+        self.__y_train_labels_sparse = []
         # Sequence, targets after balancing
-        self.__x_train_balanced = []
-        self.__y_train_balanced = []
+        # self.__x_train_balanced = []
+        # self.__y_train_balanced = []
 
         # Test
         self.__y_test_labels = []
+        self.__y_test_labels_sparse = []
         # Sequence, targets after balancing
-        self.__x_test_balanced = []
-        self.__y_test_balanced = []
+        # self.__x_test_balanced = []
+        # self.__y_test_balanced = []
 
         if not manual_mode:
             self.one_hot_encode()
             self.train_test_split()
-            self.do_all_preprocessing(self.__train, self.__test, sparse=sparse)
+            self.do_all_preprocessing(self.__train, self.__test)
 
-    def do_all_preprocessing(self, train, test, sparse=False):
+    def do_all_preprocessing(self, train, test):
             self.__train = train
             self.__test = test
             self.__train = self.impute_and_normalise(dataframe=self.__train)
@@ -126,12 +127,20 @@ class DataPreProcessor:
             self.__test = self.create_averaged_features(dataframe=self.__test)
             self.__x_train, self.__y_train = self.create_sequences(self.__train, self.__history_length, self.__horizon_length)
             self.__x_test, self.__y_test = self.create_sequences(self.__test, self.__history_length, self.__horizon_length)
-            self.__y_train_labels = self.create_labels(self.__y_train, sparse=sparse)
-            self.__y_test_labels = self.create_labels(self.__y_test, sparse=sparse)
-            self.__x_train_balanced, self.__y_train_balanced = self.balance_labels(self.__x_train, self.__y_train_labels, sparse=sparse, ignore_min_size=True)
-            self.__x_test_balanced, self.__y_test_balanced = self.balance_labels(self.__x_test, self.__y_test_labels, train=False, ignore_min_size=True, sparse=sparse)
-            self.separate_by_label(train=True, sparse=sparse)
-            self.separate_by_label(train=False, sparse=sparse)
+            self.__y_train_labels = self.create_labels(self.__y_train, sparse=False)
+            self.__y_test_labels = self.create_labels(self.__y_test, sparse=False)
+            self.__y_train_labels_sparse = self.create_labels(self.__y_train, sparse=True)
+            self.__y_test_labels_sparse = self.create_labels(self.__y_test, sparse=True)
+
+            # NO LONGER BALANCING
+            # self.__x_train_balanced, self.__y_train_balanced = self.balance_labels(self.__x_train, self.__y_train_labels, ignore_min_size=True, sparse=False)
+            # self.__x_test_balanced, self.__y_test_balanced = self.balance_labels(self.__x_test, self.__y_test_labels, train=False, ignore_min_size=True, sparse=False)
+
+            # self.__x_train_balanced, self.__y_train_balanced_sparse = self.balance_labels(self.__x_train, self.__y_train_labels_sparse, ignore_min_size=True, sparse=True)
+            # self.__x_test_balanced, self.__y_test_balanced_sparse = self.balance_labels(self.__x_test, self.__y_test_labels_sparse, train=False, ignore_min_size=True, sparse=True)
+
+            self.separate_by_label(train=True)
+            self.separate_by_label(train=False)
             self.save_scaler()
 
     def train_test_split(self, train_prop=0.8):
@@ -340,11 +349,7 @@ class DataPreProcessor:
                 transform = sequence
             if scaled:
                 transform = self.__scaler.inverse_transform(transform)
-            print(transform[:,0])
             average_throughput = (sum(transform[:,0])/len(transform[:,0]))/1000
-            print("Average tp", average_throughput)
-            sys.exit()
-
             if average_throughput < 1:
                 y_labels.append(label_dict["low"])
             elif average_throughput > 5:
@@ -398,7 +403,7 @@ class DataPreProcessor:
                     print("Minimum no. of examples of a label is", minimum)
                     print("training datasets are too small, rerunning preprocessing for better mix of data.")
                     self.train_test_split()
-                    self.do_all_preprocessing(self.__train, self.__test, sparse=self.__sparse)
+                    self.do_all_preprocessing(self.__train, self.__test)
                     # Above function will continue to be run until values below meet the criteria.
                     return self.__x_train_balanced, self.__y_train_balanced
             # Test set is too small.
@@ -407,7 +412,7 @@ class DataPreProcessor:
                     print("Minimum no. of examples of a label is", minimum)
                     print("test datasets too small, rerunning preprocessing for better mix of data.")
                     self.train_test_split()
-                    self.do_all_preprocessing(self.__train, self.__test, sparse=self.__sparse)
+                    self.do_all_preprocessing(self.__train, self.__test)
                     return self.__x_test_balanced, self.__y_test_balanced
         
         # low_x = low_x[:minimum]
@@ -421,7 +426,7 @@ class DataPreProcessor:
         y = low_y + medium_y + high_y
         return x, y
 
-    def separate_by_label(self, train=True, sparse=False):
+    def separate_by_label(self, train=True):
         low_x = []
         medium_x = []
         high_x = []
@@ -429,13 +434,9 @@ class DataPreProcessor:
         medium_y = []
         high_y = []
         reverse_label_dict = {}
-        if sparse:
-            label_dict = self.__sparse_label_dict
-        else:
-            label_dict = self.__label_dict
 
-        for key in label_dict:
-            val = label_dict[key]
+        for key in self.__label_dict:
+            val = self.__label_dict[key]
             reverse_label_dict[val] = key
 
         if train:
@@ -482,11 +483,15 @@ class DataPreProcessor:
     def get_train_sequences(self):
         return np.array(self.__x_train), np.array(self.__y_train)
 
-    def get_label_predictor_train(self):
-        return np.array(self.__x_train_balanced), np.array(self.__y_train_balanced, ndmin=2)
+    def get_label_predictor_train(self, sparse=False):
+        if sparse:
+            return np.array(self.__x_train), np.array(self.__y_train_labels_sparse, ndmin=2)
+        return np.array(self.__x_train), np.array(self.__y_train_labels, ndmin=2)
 
-    def get_label_predictor_test(self):
-        return np.array(self.__x_test_balanced), np.array(self.__y_test_balanced, ndmin=2)
+    def get_label_predictor_test(self, sparse=False):
+        if sparse:
+            return np.array(self.__x_test), np.array(self.__y_test_labels_sparse, ndmin=2)
+        return np.array(self.__x_test), np.array(self.__y_test_labels, ndmin=2)
 
     def get_low_train_sequences(self):
         return np.array(self.__x_train_low), np.array(self.__y_train_low)
