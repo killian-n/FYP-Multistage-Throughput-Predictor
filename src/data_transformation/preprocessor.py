@@ -12,11 +12,10 @@ pd.options.mode.chained_assignment = None
 
 
 class DataPreProcessor:
-    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univarte_scaler.sav", random_seed=130, history=10, horizon=5, sparse=False, create_train_test_split=False):
+    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univarte_scaler.sav", history=10, horizon=5, sparse=False, create_train_test_split=False):
 
         # Metadata
         metadata = ["Timestamp", "session", "movement_type"]
-        self.__random_seed = random_seed
         self.__history_length = history
         self.__horizon_length = horizon
         self.__sparse = sparse
@@ -114,7 +113,6 @@ class DataPreProcessor:
         self.__y_test_balanced = []
 
         if not manual_mode:
-            random.seed(self.__random_seed)
             self.one_hot_encode()
             self.train_test_split()
             self.do_all_preprocessing(self.__train, self.__test, sparse=sparse)
