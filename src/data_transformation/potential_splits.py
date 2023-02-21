@@ -78,7 +78,7 @@ if __name__ == "__main__":
         history, horizon = k[0], k[1]
         for i in range(raw_data["session"].max()+1):
             print("Processing Session:", i)
-            pre_processor = DataPreProcessor(raw_data[raw_data["session"]==i], manual_mode=True)
+            pre_processor = DataPreProcessor(raw_data[raw_data["session"]==i], manual_mode=True, create_train_test_split=True)
             data = pre_processor.impute_and_normalise(pre_processor.get_df())
             x, y = pre_processor.create_sequences(data, history, horizon)
             y_labels = pre_processor.create_labels(y)

@@ -98,20 +98,21 @@ class DataPreProcessor:
         # Labels for basic predictor model
         self.__label_dict = {"low": (1,0,0), "medium": (0,1,0), "high": (0,0,1)}
         self.__sparse_label_dict = {"low":0, "medium": 1, "high": 2}
+        self.__class_weights = {}
 
         # Train
         self.__y_train_labels = []
         self.__y_train_labels_sparse = []
         # Sequence, targets after balancing
-        # self.__x_train_balanced = []
-        # self.__y_train_balanced = []
+        self.__x_train_balanced = []
+        self.__y_train_balanced = []
 
         # Test
         self.__y_test_labels = []
         self.__y_test_labels_sparse = []
         # Sequence, targets after balancing
-        # self.__x_test_balanced = []
-        # self.__y_test_balanced = []
+        self.__x_test_balanced = []
+        self.__y_test_balanced = []
 
         if not manual_mode:
             self.one_hot_encode()
@@ -358,7 +359,8 @@ class DataPreProcessor:
                 y_labels.append(label_dict["medium"])
         return y_labels
 
-    def balance_labels(self, x_sequences, labels, train=True, ignore_min_size=True, sparse=False):
+    # KEEP FOR CREATE_TRAIN_TEST
+    def balance_labels(self, x_sequences, labels, sparse=False):
         # PROBABLY DONT NEED TO BALANCE TEST SET
         low_x = []
         medium_x = []
@@ -395,25 +397,6 @@ class DataPreProcessor:
             with open("Datasets/train_test_analysis/sequence_balance_h{}h{}.csv".format(self.__history_length, self.__horizon_length), "a", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow([self.__df["session"].max(), len(low_x), len(medium_x), len(high_x)])
-        # ======================================================================================================================
-
-        if not ignore_min_size:
-            if train:
-                if minimum < 18000:
-                    print("Minimum no. of examples of a label is", minimum)
-                    print("training datasets are too small, rerunning preprocessing for better mix of data.")
-                    self.train_test_split()
-                    self.do_all_preprocessing(self.__train, self.__test)
-                    # Above function will continue to be run until values below meet the criteria.
-                    return self.__x_train_balanced, self.__y_train_balanced
-            # Test set is too small.
-            else:
-                if minimum < 4000:
-                    print("Minimum no. of examples of a label is", minimum)
-                    print("test datasets too small, rerunning preprocessing for better mix of data.")
-                    self.train_test_split()
-                    self.do_all_preprocessing(self.__train, self.__test)
-                    return self.__x_test_balanced, self.__y_test_balanced
         
         # low_x = low_x[:minimum]
         # low_y = low_y[:minimum]
@@ -469,6 +452,11 @@ class DataPreProcessor:
             self.__x_train_high = high_x
             print("High x train", np.array(self.__x_train_high).shape)
             self.__y_train_high = high_y
+
+            self.__class_weights[self.__sparse_label_dict["low"]] = len(self.__y_train)/(3*len(self.__y_train_low))
+            self.__class_weights[self.__sparse_label_dict["medium"]] = len(self.__y_train)/(3*len(self.__y_train_medium))
+            self.__class_weights[self.__sparse_label_dict["high"]] = len(self.__y_train)/(3*len(self.__y_train_high))
+
         else:
             self.__x_test_low = low_x
             self.__y_test_low = low_y
@@ -535,6 +523,9 @@ class DataPreProcessor:
     def get_df(self):
         return self.__df
 
+    def get_class_weights(self):
+        return self.__class_weights
+
     def set_train(self, train_df=pd.DataFrame()):
         self.__train = train_df
 
@@ -551,7 +542,10 @@ if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None)
     # pre_processor = DataPreProcessor(raw_data)
     pre_processor = DataPreProcessor(raw_data, manual_mode=False, scaler_file_name="base_model_multivariate_scaler",
-     include_features=["CQI", "RSRQ","State", "NRxRSRQ", "Longitude", "Latitude", "Speed"], history=10, horizon=5)
+     include_features=["RSRQ"], history=10, horizon=5)
+
+    x_train, train_y = pre_processor.get_train_sequences()
+    print(x_train)
     
 
 
