@@ -8,6 +8,9 @@ sys.path.append(module_path)
 
 from models.single_selection_multistage_predictor import SingleSelectionMultistagePredictor
 
+
+# Change name to multistage all
+
 class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
     def __init__(self, raw_data=pd.DataFrame(), preprocessor=None, model_name="MSMSP", loss="categorical_crossentropy"):
         super().__init__(raw_data, preprocessor=preprocessor)

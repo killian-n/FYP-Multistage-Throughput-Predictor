@@ -5,6 +5,7 @@ import tensorflow as tf
 import pandas as pd
 from time import time
 from keras.utils.layer_utils import count_params
+import csv
 config = configparser.ConfigParser()
 config.read('.env')
 module_path = config['global']['MODULE_PATH']
@@ -14,6 +15,8 @@ from models.simple_LSTM import SimpleLSTM
 from models.label_predictor import LabelPredictor
 from data_transformation.preprocessor import DataPreProcessor
 
+
+# Change name to multistage_one
 
 class SingleSelectionMultistagePredictor:
     def __init__(self, raw_data=pd.DataFrame(), preprocessor=None, model_name="SSMSP", loss="sparse_categorical_crossentropy"):
@@ -111,10 +114,10 @@ class SingleSelectionMultistagePredictor:
             sparse=False
         if not self._preprocessor:
             self._preprocessor = DataPreProcessor(self._raw_data, include_features=include_features, predict=predict,
-                use_predict=use_predict, manual_mode=manual_mode, scaler=scaler, scaler_file_name=scaler_file_name, sparse=sparse)
+                use_predict=use_predict, manual_mode=manual_mode, scaler=scaler, scaler_file_name=scaler_file_name)
         self._test_x, self._test_y = self._preprocessor.get_test_sequences()
 
-    def build_and_train(self, epochs=10, batch_size=100, validation_split=0.2):
+    def build_and_train(self, epochs=20, batch_size=100, validation_split=0.2):
 
         if self._loss == "sparse_categorical_crossentropy":
             sparse=True
@@ -126,18 +129,20 @@ class SingleSelectionMultistagePredictor:
         self._label_predictor.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
         self._low_tp_model = SimpleLSTM(model_name="{}_low".format(self._model_name))
-        self._low_tp_model.pre_process(preprocessed=True, train=self._preprocessor.get_low_train_sequences(), test=self._preprocessor.get_low_test_sequences())
+        self._low_tp_model.set_train(train_x=self._preprocessor.get_low_train_sequences()[0], train_y=self._preprocessor.get_low_train_sequences()[1])
+        self._low_tp_model.set_test(test_x=self._preprocessor.get_low_test_sequences()[0], test_y=self._preprocessor.get_low_test_sequences()[1])
         self._low_tp_model.build_model()
         self._low_tp_model.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
         self._medium_tp_model = SimpleLSTM(model_name="{}_medium".format(self._model_name))
-        self._medium_tp_model.pre_process(preprocessed=True, train=self._preprocessor.get_medium_train_sequences(), test=self._preprocessor.get_medium_test_sequences())
-
+        self._medium_tp_model.set_train(train_x=self._preprocessor.get_medium_train_sequences()[0], train_y=self._preprocessor.get_medium_train_sequences()[1])
+        self._medium_tp_model.set_test(test_x=self._preprocessor.get_medium_test_sequences()[0], test_y=self._preprocessor.get_medium_test_sequences()[1])
         self._medium_tp_model.build_model()
         self._medium_tp_model.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
         self._high_tp_model = SimpleLSTM(model_name="{}_high".format(self._model_name))
-        self._high_tp_model.pre_process(preprocessed=True, train=self._preprocessor.get_high_train_sequences(), test=self._preprocessor.get_high_test_sequences())
+        self._high_tp_model.set_train(train_x=self._preprocessor.get_high_train_sequences()[0], train_y=self._preprocessor.get_high_train_sequences()[1])
+        self._high_tp_model.set_test(test_x=self._preprocessor.get_high_test_sequences()[0], test_y=self._preprocessor.get_high_test_sequences()[1])
         self._high_tp_model.build_model()
         self._high_tp_model.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
@@ -176,45 +181,62 @@ class SingleSelectionMultistagePredictor:
         mae = np.mean(np.abs(np.squeeze(true)-predicted))
         return mae
 
+    def get_mape(self, true, predicted):
+        mape = np.mean(np.abs((np.squeeze(true) - predicted)/true))*100
+        return mape
+
     def test(self):
         train_time = 0
         trainable_params = 0
         non_trainable_params = 0
+        model_size = 0
+
+        # Individual Tests
+        self._label_predictor.test()
+        self._low_tp_model.test()
+        self._medium_tp_model.test()
+        self._high_tp_model.test()
         
-        train_time += self._label_predictor.get_performance_metrics()
+        train_time += self._label_predictor.get_performance_metrics()[3]
+        model_size += self._label_predictor.get_model_size()
         trainable_params += count_params(self._label_predictor.get_model().trainable_weights)
         non_trainable_params += count_params(self._label_predictor.get_model().non_trainable_weights)
 
-        train_time += self._low_tp_model.get_performance_metrics()
+        train_time += self._low_tp_model.get_performance_metrics()[3]
+        model_size += self._low_tp_model.get_model_size()
         trainable_params += count_params(self._low_tp_model.get_model().trainable_weights)
         non_trainable_params += count_params(self._low_tp_model.get_model().non_trainable_weights)
         
-        train_time += self._medium_tp_model.get_performance_metrics()
+        train_time += self._medium_tp_model.get_performance_metrics()[3]
+        model_size += self._medium_tp_model.get_model_size()
         trainable_params += count_params(self._medium_tp_model.get_model().trainable_weights)
         non_trainable_params += count_params(self._medium_tp_model.get_model().non_trainable_weights)
 
-        train_time += self._high_tp_model.get_performance_metrics()
+        train_time += self._high_tp_model.get_performance_metrics()[3]
+        model_size += self._high_tp_model.get_model_size()
         trainable_params += count_params(self._high_tp_model.get_model().trainable_weights)
         non_trainable_params += count_params(self._high_tp_model.get_model().non_trainable_weights)
 
-        # Individual Tests
-        # self._label_predictor.test()
-        # self._low_tp_model.test()
-        # self._medium_tp_model.test()
-        # self._high_tp_model.test()
         predict_start = time()
         predicted_y = self.quick_predict(self._test_x)
         time_to_predict = time()-predict_start
-        ## TOO BIG TO FIT IN MEMORY 
-        ## WRITE FUNCTION TO COMPUTE PIECE WISE
+        time_to_predict = time_to_predict/self._test_y.shape[0]
+        
         mse = self.get_mse(self._test_y, predicted_y)
         mae = self.get_mae(self._test_y, predicted_y)
         average_bias = self.get_average_bias(self._test_y, predicted_y)
-        self._results = [self._model_name, trainable_params, non_trainable_params, train_time, time_to_predict, mse, mae, average_bias, self._test_y.shape[0]]
-
+        mape = self.get_mape(self._test_y, predicted_y)
+        self._results = [self._model_name, trainable_params, non_trainable_params, train_time, time_to_predict, mse, mae, average_bias, mape, model_size]
+        self.write_to_csv()
 
     def get_performance_metrics(self):
         return self._results
+
+    def write_to_csv(self):
+        csv_file = config["metrics"]["RESULTS_PATH"]
+        with open(csv_file, "a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(self._results)
 
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
