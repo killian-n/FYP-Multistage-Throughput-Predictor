@@ -1,5 +1,6 @@
 import tensorflow as tf
 from abc import ABC, abstractclassmethod
+import os
 
 
 class ModelFramework(ABC):
@@ -70,6 +71,20 @@ class ModelFramework(ABC):
     def get_test(self):
         return self._test_x, self._test_y
 
+    def set_train(self, train_x, train_y):
+        self._train_x = train_x
+        self._train_y = train_y
+
+    def set_test(self, test_x, test_y):
+        self._test_x = test_x
+        self._test_y = test_y
+
     def get_preprocessor(self):
         return self._preprocessor
+
+    def get_model_size(self):
+        filepath = 'src/saved.objects/{}.hdf5'.format(self._model_name)
+        file_stats = os.stat(filepath)
+        model_size = file_stats.st_size/(1024*1024)
+        return model_size
 
