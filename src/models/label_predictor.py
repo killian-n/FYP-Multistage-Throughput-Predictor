@@ -40,12 +40,12 @@ class LabelPredictor(ModelFramework):
             self._test_y = self._test_y.T
 
     def build_model(self, loss="categorical_crossentropy"):
-        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64, input_shape=(self._train_x.shape[1:]), return_sequences=True))
+        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(128, input_shape=(self._train_x.shape[1:]), return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.3))
-        self._model.add(tf.keras.layers.BatchNormalization())
+        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64, input_shape=(self._train_x.shape[1:]),return_sequences=True))
+        self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(32, input_shape=(self._train_x.shape[1:]),return_sequences=False))
         self._model.add(tf.keras.layers.Dropout(.3))
-        self._model.add(tf.keras.layers.BatchNormalization())
         self._model.add(tf.keras.layers.Dense(32))
         self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.keras.layers.Dense(3, activation="softmax"))
@@ -54,10 +54,10 @@ class LabelPredictor(ModelFramework):
         self.set_input_shape()
         self.set_output_shape()
 
-    def train(self, epochs=20, batch_size=100, validation_split=0.2):
+    def train(self, epochs=70, batch_size=100, validation_split=0.2):
         timer = TimingCallback()
         self._tensorboard = TensorBoard(log_dir="src/logs/{}".format(self._model_name))
-        self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=True)
+        self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=False)
         self._class_weights = self._preprocessor.get_class_weights()
         self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size,
          validation_split=validation_split, verbose=1, callbacks=[self._checkpointer, self._tensorboard, timer], class_weight=self._class_weights)
@@ -71,10 +71,12 @@ class LabelPredictor(ModelFramework):
         time_to_predict = time()-predict_start
         time_to_predict = time_to_predict/self._test_y.shape[0]
         test = self._model.evaluate(self._test_x, self._test_y, batch_size=100)
-        accuracy = test[0]
+        accuracy = test[1]
         model_size = self.get_model_size()
         self._results = [self._model_name, trainable_params, non_trainable_params, self._train_time, time_to_predict, "n/a", "n/a", "n/a", "n/a",model_size, accuracy]
         self.write_to_csv()
+        self.save_output(predicted_y, self._model_name+"_predicted_y")
+        self.save_output(self._test_y, self._model_name+"_true_y")
 
     def get_performance_metrics(self):
         return self._results

@@ -1,6 +1,7 @@
 import tensorflow as tf
 from abc import ABC, abstractclassmethod
 import os
+import numpy as np
 
 
 class ModelFramework(ABC):
@@ -81,6 +82,10 @@ class ModelFramework(ABC):
 
     def get_preprocessor(self):
         return self._preprocessor
+    
+    def save_output(self,output,filename="DEFAULT_NAME_OUTPUTS"):
+        filename = "Datasets/Model_Outputs/"+filename
+        np.save(filename, output)
 
     def get_model_size(self):
         filepath = 'src/saved.objects/{}.hdf5'.format(self._model_name)
