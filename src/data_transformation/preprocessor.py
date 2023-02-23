@@ -520,6 +520,9 @@ class DataPreProcessor:
     def get_scaler(self):
         return self.__scaler
 
+    def get_scaler_length(self):
+        return self.__scaler_length
+
     def get_df(self):
         return self.__df
 

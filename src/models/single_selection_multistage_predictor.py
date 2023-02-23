@@ -117,7 +117,7 @@ class SingleSelectionMultistagePredictor:
                 use_predict=use_predict, manual_mode=manual_mode, scaler=scaler, scaler_file_name=scaler_file_name)
         self._test_x, self._test_y = self._preprocessor.get_test_sequences()
 
-    def build_and_train(self, epochs=20, batch_size=100, validation_split=0.2):
+    def build_and_train(self, epochs=70, batch_size=100, validation_split=0.2):
 
         if self._loss == "sparse_categorical_crossentropy":
             sparse=True
@@ -181,8 +181,18 @@ class SingleSelectionMultistagePredictor:
         mae = np.mean(np.abs(np.squeeze(true)-predicted))
         return mae
 
-    def get_mape(self, true, predicted):
-        mape = np.mean(np.abs((np.squeeze(true) - predicted)/true))*100
+    def get_mape(self, true, predicted, epsilon=50):
+        scaler = self._preprocessor.get_scaler()
+        transform = np.zeros((1, self._preprocessor.get_scaler_length()))
+        transform[0,0] = epsilon
+        transform = scaler.transform(transform)
+        epsilon = transform[0,0]
+        denominator = np.squeeze(true) + epsilon
+        try:
+            mape = np.mean(np.abs((np.squeeze(true) - predicted)/denominator))*100
+        except Exception as e:
+            print(e)
+            mape = "n/a"
         return mape
 
     def test(self):
@@ -228,6 +238,8 @@ class SingleSelectionMultistagePredictor:
         mape = self.get_mape(self._test_y, predicted_y)
         self._results = [self._model_name, trainable_params, non_trainable_params, train_time, time_to_predict, mse, mae, average_bias, mape, model_size]
         self.write_to_csv()
+        self.save_output(predicted_y, self._model_name+"_predicted_y")
+        self.save_output(self._test_y, self._model_name+"_true_y")
 
     def get_performance_metrics(self):
         return self._results
@@ -238,14 +250,24 @@ class SingleSelectionMultistagePredictor:
             writer = csv.writer(f)
             writer.writerow(self._results)
 
+    def save_output(self,output,filename="DEFAULT_NAME_OUTPUTS"):
+        filename = "Datasets/Model_Outputs/"+filename
+        np.save(filename, output)
+
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
     example = SingleSelectionMultistagePredictor(raw_data)
     example.pre_process()
     example.build_and_train()
     example.test()
-    b = example.get_performance_metrics()
-    print(b)
+    # b = example.get_performance_metrics()
+    # print(b)
+    # transform = np.zeros((1, 7))
+    # print(transform)
+    # epsilon = 50
+    # transform[0,0] = epsilon
+    # print(transform)
+
 
     # a = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
     # b = [[4,1], [1,5]]
