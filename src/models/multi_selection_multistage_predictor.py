@@ -92,7 +92,7 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         self._trainable_params += count_params(self._label_predictor.get_model().trainable_weights)
         self._non_trainable_params += count_params(self._label_predictor.get_model().non_trainable_weights)
         predict_start = time()
-        predicted_y = self.__call__(self._test_x)
+        predicted_y = self.predict(self._test_x)
         time_to_predict = time()-predict_start
         time_to_predict = time_to_predict/self._test_y.shape[0]
         mse = self.get_mse(self._test_y, predicted_y)

@@ -7,6 +7,8 @@ config.read('.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 from models.simple_LSTM import SimpleLSTM
+import pandas as pd
+from data_transformation.preprocessor import DataPreProcessor
 
 
 class ComplexLSTM(SimpleLSTM):
@@ -49,8 +51,18 @@ class ComplexLSTM(SimpleLSTM):
         self._results[7] = average_bias
         self._results[8] = mape
         self.write_to_csv()
+        self.save_output(self._train_x, self._model_name+"_train_x")
+        self.save_output(self._train_y, self._model_name+"_train_y")
+        self.save_output(self._test_x, self._model_name+"_test_x")
         self.save_output(predicted_y, model_name+"_predicted_y")
         self.save_output(self._test_y, model_name+"_true_y")
 
 
-        
+if __name__=="__main__":
+    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
+    pre_processor = DataPreProcessor(raw_data, manual_mode=False, scaler_file_name="THE_SAVIOR.sav")
+    example = ComplexLSTM(preprocessor=pre_processor, model_name="THE_SAVIOUR")
+    example.pre_process()
+    example.build_model()
+    example.train(epochs=70)
+    example.test()

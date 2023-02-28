@@ -34,7 +34,9 @@ class SimpleLSTM(ModelFramework):
         self._test_x, self._test_y = self._preprocessor.get_test_sequences()
 
     def build_model(self):
-        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64, input_shape=(self._train_x.shape[1], self._train_x.shape[2]), return_sequences=True))
+        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(128, input_shape=(self._train_x.shape[1], self._train_x.shape[2]), return_sequences=True))
+        self._model.add(tf.keras.layers.Dropout(.3))
+        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64,return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(32,return_sequences=False))
         self._model.add(tf.keras.layers.Dropout(.3))

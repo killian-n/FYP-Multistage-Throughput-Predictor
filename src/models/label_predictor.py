@@ -60,7 +60,7 @@ class LabelPredictor(ModelFramework):
         self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=False)
         self._class_weights = self._preprocessor.get_class_weights()
         self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size,
-         validation_split=validation_split, verbose=1, callbacks=[self._checkpointer, self._tensorboard, timer], class_weight=self._class_weights)
+         validation_split=validation_split, verbose=1, callbacks=[self._checkpointer, self._tensorboard, timer])
         self._train_time = sum(timer.logs)
 
     def test(self):
@@ -92,8 +92,9 @@ class LabelPredictor(ModelFramework):
 if __name__ == "__main__":
     # {0: 1.7086360253729758, 1: 1.1781551618814905, 2: 0.6385886840432295}
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
-    example = LabelPredictor(raw_data)
-    example.pre_process()
+    preprocessor_univariate = DataPreProcessor(raw_data, scaler_file_name="throw_away_univariate.sav")
+    example = LabelPredictor(model_name="label_preditor_univariate_unweighted")
+    example.pre_process(preprocessor=preprocessor_univariate)
     example.build_model()
     example.train()
     example.test()

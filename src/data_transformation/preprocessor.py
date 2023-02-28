@@ -12,7 +12,7 @@ pd.options.mode.chained_assignment = None
 
 
 class DataPreProcessor:
-    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univarte_scaler.sav", history=10, horizon=5, create_train_test_split=False):
+    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univariate_scaler.sav", history=10, horizon=5, create_train_test_split=False):
 
         # Metadata
         metadata = ["Timestamp", "session", "movement_type"]
@@ -232,6 +232,7 @@ class DataPreProcessor:
         self.__df = pd.get_dummies(self.__df.drop(columns=["movement_type"]))
         self.__categorical_features = list(set(self.__df.drop(columns=["Timestamp", "session"])).difference(\
             self.__df[self.__numeric_features+self.__geo_features]))
+        print("Categorical features:", self.__categorical_features)
     
     def impute_and_normalise(self, dataframe, test=False, scaler=None, return_true_values=False):
         # IMPORTANT: See Data_Expolration notebook for reasoning on imputation choices
@@ -241,8 +242,8 @@ class DataPreProcessor:
             if test:
                 print("Error, test data must use a prior scaler created on the training data.")
                 return None
-            # scaler = MinMaxScaler((-1,1))
-            scaler = RobustScaler()
+            scaler = MinMaxScaler((-1,1))
+            # scaler = RobustScaler()
         
         if "CQI" in self.__numeric_features:
             dataframe["CQI"].fillna(dataframe["CQI"].min(), inplace=True)
@@ -255,9 +256,9 @@ class DataPreProcessor:
 
         # Checking to see if the y variable is being used to predict itself.
         if self.__use_predict:
-            order = self.__predict+self.__numeric_features[:-(len(self.__predict))]+self.__geo_features+self.__categorical_features
+            order = self.__predict+self.__numeric_features[:-(len(self.__predict))]+self.__geo_features
         else:
-            order = self.__numeric_features+self.__geo_features+self.__categorical_features
+            order = self.__numeric_features+self.__geo_features
         x_data = dataframe[order]
         # checking to see if scaler already trained.
         if not test:
@@ -278,7 +279,6 @@ class DataPreProcessor:
 
         # Reasssigning scaled and imputed data to the dataframe
         dataframe[order] = new_values
-        dataframe[order]
         if not test:
             self.__scaler = scaler
             self.__scaler_length = len(x_data.columns)
@@ -339,7 +339,6 @@ class DataPreProcessor:
             label_dict = self.__sparse_label_dict
         else:
             label_dict = self.__label_dict
-
         for sequence in y_sequences:
             # adding columns to the np.array to match the shape used in the scaler.
             diff = self.__scaler_length - sequence.shape[1]
@@ -544,13 +543,22 @@ class DataPreProcessor:
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None)
     # pre_processor = DataPreProcessor(raw_data)
-    pre_processor = DataPreProcessor(raw_data, manual_mode=False, scaler_file_name="base_model_multivariate_scaler",
-     include_features=["RSRQ"], history=10, horizon=5)
+    # pre_processor = DataPreProcessor(raw_data, manual_mode=False, scaler_file_name="base_model_multivariate_scaler",
+    #  include_features=["RSRQ", "State"], history=10, horizon=5)
 
-    x_train, train_y = pre_processor.get_train_sequences()
-    print(x_train)
-    
+    # x_train, train_y = pre_processor.get_train_sequences()
+    # print(x_train)
 
+    preprocessor_multi3 = DataPreProcessor(raw_data, include_features=["RSRQ", "Longitude", "Latitude", "State", "NRxRSRQ"], scaler_file_name="DELETE.sav")
+    x, y = preprocessor_multi3.get_train_sequences()
+    k, z = preprocessor_multi3.get_test_sequences()
+    print(x[100],"\n", y[100], "\n===========")
+    print(k[100],"\n", z[100], "\n===========")
+
+    t,s = preprocessor_multi3.get_low_test_sequences()
+    p, e = preprocessor_multi3.get_low_train_sequences()
+    print(p[100],"\n", e[100], "\n===========")
+    print(t[100],"\n", s[100], "\n===========")
 
     # history = 20
     # horizon = 10
