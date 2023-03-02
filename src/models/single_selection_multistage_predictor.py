@@ -12,6 +12,7 @@ module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 
 from models.simple_LSTM import SimpleLSTM
+from models.complex_LSTM import ComplexLSTM
 from models.label_predictor import LabelPredictor
 from data_transformation.preprocessor import DataPreProcessor
 
@@ -34,23 +35,6 @@ class SingleSelectionMultistagePredictor:
         self._output_shape = ()
 
         self._results = []
-
-    def __model_selector(self, x_sequence):
-        try:
-            x_sequence = np.reshape(x_sequence, (1,self._input_shape[1],self._input_shape[2]))
-            label = self._label_predictor(x_sequence)
-            if np.argmax(label) == 0:
-                result = self._low_tp_model(x_sequence)
-            elif np.argmax(label) == 1:
-                result = self._medium_tp_model(x_sequence)
-            else:
-                result = self._high_tp_model(x_sequence)
-            return result.numpy()
-        except:
-            print("X:", x_sequence)
-            print("X shape:", x_sequence.shape)
-            print("Desired shape: (",1, self._input_shape[1], self._input_shape[2], ")")
-            sys.exit()
 
     def quick_predict(self, x_sequences, no_of_batches=1000):
         if no_of_batches > x_sequences.shape[0]:
@@ -77,24 +61,6 @@ class SingleSelectionMultistagePredictor:
         high_result = self._high_tp_model(x_sequences).numpy()*high_labels
         result = low_result + medium_result + high_result
         return result
-
-
-    def __call__(self, x_sequences):
-        try:
-            get_prediction = np.vectorize(self.__model_selector, signature="(n,m)->(j, k)")
-            results = get_prediction(x_sequences)
-            if len(self._output_shape) < 3:
-                results = results.reshape((results.shape[0], self._output_shape[1]))
-            else:
-                results = results.reshape((results.shape[0], self._output_shape[1], self._output_shape[2]))
-            return results
-        except Exception as e:
-            print(x_sequences[0:10])
-            print(x_sequences.shape)
-            print("\n\n=========\n", e)
-            with open("Datasets/debug.txt", "w") as f:
-                f.write(np.array2string(x_sequences, precision=2, separator=","))
-            sys.exit()
 
     def predict(self, x_sequences, no_of_batches=1000):
         if no_of_batches > x_sequences.shape[0]:
@@ -128,19 +94,19 @@ class SingleSelectionMultistagePredictor:
         self._label_predictor.build_model(loss=self._loss)
         self._label_predictor.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
-        self._low_tp_model = SimpleLSTM(model_name="{}_low".format(self._model_name))
+        self._low_tp_model = SimpleLSTM(model_name="{}_low".format(self._model_name), preprocessor=self._preprocessor)
         self._low_tp_model.set_train(train_x=self._preprocessor.get_low_train_sequences()[0], train_y=self._preprocessor.get_low_train_sequences()[1])
         self._low_tp_model.set_test(test_x=self._preprocessor.get_low_test_sequences()[0], test_y=self._preprocessor.get_low_test_sequences()[1])
         self._low_tp_model.build_model()
         self._low_tp_model.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
-        self._medium_tp_model = SimpleLSTM(model_name="{}_medium".format(self._model_name))
+        self._medium_tp_model = SimpleLSTM(model_name="{}_medium".format(self._model_name), preprocessor=self._preprocessor)
         self._medium_tp_model.set_train(train_x=self._preprocessor.get_medium_train_sequences()[0], train_y=self._preprocessor.get_medium_train_sequences()[1])
         self._medium_tp_model.set_test(test_x=self._preprocessor.get_medium_test_sequences()[0], test_y=self._preprocessor.get_medium_test_sequences()[1])
         self._medium_tp_model.build_model()
         self._medium_tp_model.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
-        self._high_tp_model = SimpleLSTM(model_name="{}_high".format(self._model_name))
+        self._high_tp_model = SimpleLSTM(model_name="{}_high".format(self._model_name), preprocessor=self._preprocessor)
         self._high_tp_model.set_train(train_x=self._preprocessor.get_high_train_sequences()[0], train_y=self._preprocessor.get_high_train_sequences()[1])
         self._high_tp_model.set_test(test_x=self._preprocessor.get_high_test_sequences()[0], test_y=self._preprocessor.get_high_test_sequences()[1])
         self._high_tp_model.build_model()
@@ -238,6 +204,7 @@ class SingleSelectionMultistagePredictor:
         mape = self.get_mape(self._test_y, predicted_y)
         self._results = [self._model_name, trainable_params, non_trainable_params, train_time, time_to_predict, mse, mae, average_bias, mape, model_size]
         self.write_to_csv()
+        self.save_output(self._test_x, self._model_name+"_test_x")
         self.save_output(predicted_y, self._model_name+"_predicted_y")
         self.save_output(self._test_y, self._model_name+"_true_y")
 
@@ -256,9 +223,9 @@ class SingleSelectionMultistagePredictor:
 
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
-    example = SingleSelectionMultistagePredictor(raw_data)
-    example.pre_process()
-    example.build_and_train()
+    example = SingleSelectionMultistagePredictor(raw_data, model_name="THE_FEAR_NO_SCALE")
+    example.pre_process(include_features=["State"], scaler_file_name="THE_FEAR_NO_SCALE.sav")
+    example.build_and_train(epochs=3)
     example.test()
     # b = example.get_performance_metrics()
     # print(b)

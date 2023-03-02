@@ -17,8 +17,8 @@ if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
 
     # Univariate
-    # preprocessor_univariate = DataPreProcessor(raw_data)
-    # multi_one_univariate = SingleSelectionMultistagePredictor(preprocessor=preprocessor_univariate, model_name="multi_one_univariate_updated_lstm_min_max")
+    preprocessor_univariate = DataPreProcessor(raw_data)
+    multi_one_univariate = SingleSelectionMultistagePredictor(preprocessor=preprocessor_univariate, model_name="multi_one_complex_univariate")
     # base_univariate = ComplexLSTM(preprocessor=preprocessor_univariate, model_name="base_univariate_min_max")
 
 
@@ -33,14 +33,14 @@ if __name__ == "__main__":
     # multi_one_multi1 = SingleSelectionMultistagePredictor(preprocessor=preprocessor_multi1, model_name="multi_one_1")
     # base_multi1 = ComplexLSTM(preprocessor=preprocessor_multi1, model_name="base_1")
 
-    # # 2
-    # # Multivariate with RSRQ, Longitude, Latitude, State, State
+    # 2
+    # Multivariate with RSRQ, Longitude, Latitude, State, State
     # preprocessor_multi2 = DataPreProcessor(raw_data, include_features=["RSRQ", "Longitude", "Latitude", "State"], scaler_file_name="multi_2_scaler.sav")
     # multi_one_multi2 = SingleSelectionMultistagePredictor(preprocessor=preprocessor_multi2, model_name="multi_one_2")
     # base_multi2 = ComplexLSTM(preprocessor=preprocessor_multi2, model_name="base_2")
 
     # 3
-    # Multivariate with RSRQ, Longitude, Latitude, State, State, NRxRSRQ
+    # Multivariate with RSRQ, Longitude, Latitude, State, NRxRSRQ
     # preprocessor_multi3 = DataPreProcessor(raw_data, include_features=["RSRQ", "Longitude", "Latitude", "State", "NRxRSRQ"], scaler_file_name="multi_3_scaler.sav")
     # multi_one_multi3 = SingleSelectionMultistagePredictor(preprocessor=preprocessor_multi3, model_name="multi_one_3")
     # base_multi3 = ComplexLSTM(preprocessor=preprocessor_multi3, model_name="base_3")
@@ -56,12 +56,12 @@ if __name__ == "__main__":
 
     
     # 4 
-    preprocessor_multi4 = DataPreProcessor(raw_data, include_features=["RSRQ", "NRxRSRQ", "SNR", "UL_bitrate", "NetworkMode", "State"], scaler_file_name="multi_4_scaler.sav")
+    # preprocessor_multi4 = DataPreProcessor(raw_data, include_features=["RSRQ", "NRxRSRQ", "SNR", "UL_bitrate", "NetworkMode", "State"], scaler_file_name="multi_4_scaler.sav")
     # multi_one_multi4 = SingleSelectionMultistagePredictor(preprocessor=preprocessor_multi4, model_name="multi_one_4")
     # base_multi4 = ComplexLSTM(preprocessor=preprocessor_multi4, model_name="base_4")
-    multi_all_multi4 = MultiSelectionMultistagePredictor(preprocessor=preprocessor_multi4, model_name="multi_all_4", pretrained_sequence_models="multi_one_4")
+    # multi_all_multi4 = MultiSelectionMultistagePredictor(preprocessor=preprocessor_multi4, model_name="multi_all_4", pretrained_sequence_models="multi_one_4")
 
-    models_to_test = [multi_all_multi4]
+    models_to_test = [multi_one_univariate]
 
     # with open(config["metrics"]["RESULTS_PATH"], "a", newline="") as f:
     #     writer = csv.writer(f)
