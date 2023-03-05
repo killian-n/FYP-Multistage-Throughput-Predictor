@@ -9,9 +9,9 @@ sys.path.append(module_path)
 
 
 from data_transformation.preprocessor import DataPreProcessor
-from models.single_selection_multistage_predictor import SingleSelectionMultistagePredictor
-from models.multi_selection_multistage_predictor import MultiSelectionMultistagePredictor
-from models.complex_LSTM import ComplexLSTM
+from training_models.single_selection_multistage_predictor import SingleSelectionMultistagePredictor
+from training_models.multi_selection_multistage_predictor import MultiSelectionMultistagePredictor
+from training_models.baseline_regression_model import BaselineLSTM
 
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
