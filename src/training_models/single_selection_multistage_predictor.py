@@ -11,9 +11,8 @@ config.read('.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 
-from models.simple_LSTM import SimpleLSTM
-from models.complex_LSTM import ComplexLSTM
-from models.label_predictor import LabelPredictor
+from training_models.multistage_regression_model import MultiStageLSTM
+from training_models.classifier import ThroughputClassifier
 from data_transformation.preprocessor import DataPreProcessor
 
 
@@ -33,34 +32,10 @@ class SingleSelectionMultistagePredictor:
         self._high_tp_model = None
         self._input_shape = ()
         self._output_shape = ()
-
+        self._is_scaled = None
+        if self._preprocessor:
+            self._is_scaled = self._preprocessor.is_scaled()
         self._results = []
-
-    def quick_predict(self, x_sequences, no_of_batches=1000):
-        if no_of_batches > x_sequences.shape[0]:
-            no_of_batches = 1
-        predictions = np.zeros((x_sequences.shape[0], self._output_shape[1]))
-        index = 0
-        for arr in np.array_split(x_sequences, no_of_batches):
-            result = self.quick_call(arr)
-            predictions[index:result.shape[0]+index, :] = result
-            index += result.shape[0]
-        return predictions
-    
-    def quick_call(self, x_sequences):
-        """Running the sequences through all 3 models is quicker than using
-        __model_selector due to parallelisation."""
-        label = self._label_predictor(x_sequences).numpy()
-        
-        low_labels = label[:,0].reshape((label.shape[0],1))
-        med_labels = label[:,1].reshape((label.shape[0],1))
-        high_labels = label[:,2].reshape((label.shape[0],1))
-
-        low_result = self._low_tp_model(x_sequences).numpy()*low_labels
-        medium_result = self._medium_tp_model(x_sequences).numpy()*med_labels
-        high_result = self._high_tp_model(x_sequences).numpy()*high_labels
-        result = low_result + medium_result + high_result
-        return result
 
     def predict(self, x_sequences, no_of_batches=1000):
         if no_of_batches > x_sequences.shape[0]:
@@ -72,16 +47,44 @@ class SingleSelectionMultistagePredictor:
             predictions[index:result.shape[0]+index, :] = result
             index += result.shape[0]
         return predictions
+    
+    def __call__(self, x_sequences):
+        label = self._label_predictor(x_sequences).numpy()
+        
+        low_labels = label[:,0].reshape((label.shape[0],1))
+        med_labels = label[:,1].reshape((label.shape[0],1))
+        high_labels = label[:,2].reshape((label.shape[0],1))
 
-    def pre_process(self, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="SSMSP_scaler.sav"):
+        x_sequences = self.__inverse_scale(x_sequences)
+
+        low_result = self._low_tp_model(x_sequences)*low_labels
+        medium_result = self._medium_tp_model(x_sequences)*med_labels
+        high_result = self._high_tp_model(x_sequences)*high_labels
+        result = low_result + medium_result + high_result
+        return result
+
+    def predict(self, x_sequences, no_of_batches=1000):
+        """ """
+        if no_of_batches > x_sequences.shape[0]:
+            no_of_batches = 1
+        predictions = np.zeros((x_sequences.shape[0], self._output_shape[1]))
+        index = 0
+        for arr in np.array_split(x_sequences, no_of_batches):
+            result = self.__call__(arr)
+            predictions[index:result.shape[0]+index, :] = result
+            index += result.shape[0]
+        return predictions
+
+    def pre_process(self, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler_file_name="SSMSP_scaler.sav"):
         if self._loss == "sparse_categorical_crossentropy":
             sparse=True
         else:
             sparse=False
         if not self._preprocessor:
             self._preprocessor = DataPreProcessor(self._raw_data, include_features=include_features, predict=predict,
-                use_predict=use_predict, manual_mode=manual_mode, scaler=scaler, scaler_file_name=scaler_file_name)
+                use_predict=use_predict, manual_mode=manual_mode, scaler_file_name=scaler_file_name)
         self._test_x, self._test_y = self._preprocessor.get_test_sequences()
+        self._test_y = self.__inverse_scale(self._test_y, is_x=False)
 
     def build_and_train(self, epochs=70, batch_size=100, validation_split=0.2):
 
@@ -89,26 +92,49 @@ class SingleSelectionMultistagePredictor:
             sparse=True
         else:
             sparse=False
-        self._label_predictor = LabelPredictor(model_name=self._model_name+"_label_predictor", sparse=sparse)
-        self._label_predictor.pre_process(preprocessor=self._preprocessor)
+        self._label_predictor = ThroughputClassifier(model_name=self._model_name+"_classifier", sparse=sparse, preprocessor=self._preprocessor)
+        self._label_predictor.pre_process()
         self._label_predictor.build_model(loss=self._loss)
         self._label_predictor.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
-
-        self._low_tp_model = SimpleLSTM(model_name="{}_low".format(self._model_name), preprocessor=self._preprocessor)
-        self._low_tp_model.set_train(train_x=self._preprocessor.get_low_train_sequences()[0], train_y=self._preprocessor.get_low_train_sequences()[1])
-        self._low_tp_model.set_test(test_x=self._preprocessor.get_low_test_sequences()[0], test_y=self._preprocessor.get_low_test_sequences()[1])
+        
+        x_train, y_train = self._preprocessor.get_low_train_sequences()
+        x_train = self.__inverse_scale(x_train)
+        print("Sample of x_train",x_train[0])
+        y_train = self.__inverse_scale(y_train, is_x=False)
+        print("Sample of y_train",y_train[0])
+        x_test, y_test = self._preprocessor.get_low_test_sequences()
+        x_test = self.__inverse_scale(x_test)
+        y_test = self.__inverse_scale(y_test, is_x=False)
+        
+        self._low_tp_model = MultiStageLSTM(model_name="{}_low".format(self._model_name), preprocessor=self._preprocessor)
+        self._low_tp_model.set_train(train_x=x_train, train_y=y_train)
+        self._low_tp_model.set_test(test_x=x_test, test_y=y_test)
         self._low_tp_model.build_model()
         self._low_tp_model.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
-        self._medium_tp_model = SimpleLSTM(model_name="{}_medium".format(self._model_name), preprocessor=self._preprocessor)
-        self._medium_tp_model.set_train(train_x=self._preprocessor.get_medium_train_sequences()[0], train_y=self._preprocessor.get_medium_train_sequences()[1])
-        self._medium_tp_model.set_test(test_x=self._preprocessor.get_medium_test_sequences()[0], test_y=self._preprocessor.get_medium_test_sequences()[1])
+        x_train, y_train = self._preprocessor.get_medium_train_sequences()
+        x_train = self.__inverse_scale(x_train)
+        y_train = self.__inverse_scale(y_train, is_x=False)
+        x_test, y_test = self._preprocessor.get_medium_test_sequences()
+        x_test = self.__inverse_scale(x_test)
+        y_test = self.__inverse_scale(y_test, is_x=False)
+
+        self._medium_tp_model = MultiStageLSTM(model_name="{}_medium".format(self._model_name), preprocessor=self._preprocessor)
+        self._medium_tp_model.set_train(train_x=x_train, train_y=y_train)
+        self._medium_tp_model.set_test(test_x=x_test, test_y=y_test)
         self._medium_tp_model.build_model()
         self._medium_tp_model.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
-        self._high_tp_model = SimpleLSTM(model_name="{}_high".format(self._model_name), preprocessor=self._preprocessor)
-        self._high_tp_model.set_train(train_x=self._preprocessor.get_high_train_sequences()[0], train_y=self._preprocessor.get_high_train_sequences()[1])
-        self._high_tp_model.set_test(test_x=self._preprocessor.get_high_test_sequences()[0], test_y=self._preprocessor.get_high_test_sequences()[1])
+        x_train, y_train = self._preprocessor.get_high_train_sequences()
+        x_train = self.__inverse_scale(x_train)
+        y_train = self.__inverse_scale(y_train, is_x=False)
+        x_test, y_test = self._preprocessor.get_high_test_sequences()
+        x_test = self.__inverse_scale(x_test)
+        y_test = self.__inverse_scale(y_test, is_x=False)
+
+        self._high_tp_model = MultiStageLSTM(model_name="{}_high".format(self._model_name), preprocessor=self._preprocessor)
+        self._high_tp_model.set_train(train_x=x_train, train_y=y_train)
+        self._high_tp_model.set_test(test_x=x_test, test_y=y_test)
         self._high_tp_model.build_model()
         self._high_tp_model.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
@@ -116,19 +142,19 @@ class SingleSelectionMultistagePredictor:
         self._output_shape = self._high_tp_model.get_output_shape()
         
     def load_models(self):
-        self._label_predictor = LabelPredictor(model_name=self._model_name+"_label_predictor")
+        self._label_predictor = ThroughputClassifier(model_name=self._model_name+"_label_predictor")
         label_predictor = tf.keras.models.load_model("src/saved.objects/{}_label_predictor.hdf5".format(self._model_name))
         self._label_predictor.set_model(label_predictor)
 
-        self._low_tp_model = SimpleLSTM(model_name="{}_low".format(self._model_name))
+        self._low_tp_model = MultiStageLSTM(model_name="{}_low".format(self._model_name))
         low_tp_model = tf.keras.models.load_model("src/saved.objects/{}_low.hdf5".format(self._model_name))
         self._low_tp_model.set_model(low_tp_model)
 
-        self._medium_tp_model = SimpleLSTM(model_name="{}_medium".format(self._model_name))
+        self._medium_tp_model = MultiStageLSTM(model_name="{}_medium".format(self._model_name))
         medium_tp_model = tf.keras.models.load_model("src/saved.objects/{}_medium.hdf5".format(self._model_name))
         self._medium_tp_model.set_model(medium_tp_model)
 
-        self._high_tp_model = SimpleLSTM(model_name="{}_high".format(self._model_name))
+        self._high_tp_model = MultiStageLSTM(model_name="{}_high".format(self._model_name))
         high_tp_model = tf.keras.models.load_model("src/saved.objects/{}_high.hdf5".format(self._model_name))
         self._high_tp_model.set_model(high_tp_model)
 
@@ -148,11 +174,6 @@ class SingleSelectionMultistagePredictor:
         return mae
 
     def get_mape(self, true, predicted, epsilon=50):
-        scaler = self._preprocessor.get_scaler()
-        transform = np.zeros((1, self._preprocessor.get_scaler_length()))
-        transform[0,0] = epsilon
-        transform = scaler.transform(transform)
-        epsilon = transform[0,0]
         denominator = np.squeeze(true) + epsilon
         try:
             mape = np.mean(np.abs((np.squeeze(true) - predicted)/denominator))*100
@@ -194,7 +215,7 @@ class SingleSelectionMultistagePredictor:
         non_trainable_params += count_params(self._high_tp_model.get_model().non_trainable_weights)
 
         predict_start = time()
-        predicted_y = self.quick_predict(self._test_x)
+        predicted_y = self.predict(self._test_x)
         time_to_predict = time()-predict_start
         time_to_predict = time_to_predict/self._test_y.shape[0]
         
@@ -210,6 +231,18 @@ class SingleSelectionMultistagePredictor:
 
     def get_performance_metrics(self):
         return self._results
+    
+    def __inverse_scale(self, input_array, is_x=True):
+        input_shape = input_array.shape
+        if is_x:
+             input_array = self._preprocessor.get_scaler().inverse_transform(input_array.reshape(-1, input_array.shape[-1])).reshape(input_shape)
+        else:
+            input_array = np.squeeze(input_array).flatten()
+            transform = np.zeros((len(input_array), self._preprocessor.get_scaler().n_features_in_))
+            transform[:,0] = input_array
+            transform = self._preprocessor.get_scaler().inverse_transform(transform)
+            input_array = transform[:,0].reshape(input_shape)
+        return input_array
 
     def write_to_csv(self):
         csv_file = config["metrics"]["RESULTS_PATH"]
@@ -223,9 +256,10 @@ class SingleSelectionMultistagePredictor:
 
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
-    example = SingleSelectionMultistagePredictor(raw_data, model_name="THE_FEAR_NO_SCALE")
-    example.pre_process(include_features=["State"], scaler_file_name="THE_FEAR_NO_SCALE.sav")
-    example.build_and_train(epochs=3)
+    preprocessor = DataPreProcessor(raw_data, scaler_file_name="debugging_scaler.sav", include_features=["NRxRSRQ", "RSRQ", "SNR", "CQI", "RSSI"])
+    example = SingleSelectionMultistagePredictor(preprocessor=preprocessor, model_name="multi_1")
+    example.pre_process()
+    example.build_and_train()
     example.test()
     # b = example.get_performance_metrics()
     # print(b)
