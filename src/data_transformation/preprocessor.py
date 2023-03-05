@@ -12,13 +12,14 @@ pd.options.mode.chained_assignment = None
 
 
 class DataPreProcessor:
-    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univariate_scaler.sav", history=10, horizon=5, create_train_test_split=False):
+    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univariate_scaler.sav", scale_data=True, history=10, horizon=5, create_train_test_split=False):
 
         # Metadata
         metadata = ["Timestamp", "session", "movement_type"]
         self.__history_length = history
         self.__horizon_length = horizon
         self.__create_train_test_split = create_train_test_split
+        self.__scale_data = scale_data
         
         # Working dataframes
         self.__df = dataframe[include_features+predict+metadata]
@@ -69,6 +70,11 @@ class DataPreProcessor:
         if self.__categorical_features:
             self.__df[self.__categorical_features].fillna(self.__df[self.__categorical_features].mode().iloc[0], inplace=True)
 
+        if self.__use_predict:
+            self.__features_to_scale = self.__predict+self.__numeric_features[:-(len(self.__predict))]+self.__geo_features
+        else:
+            self.__features_to_scale = self.__numeric_features+self.__geo_features
+
         # Output variables for use in models
         self.__features = []
 
@@ -115,23 +121,31 @@ class DataPreProcessor:
         self.__y_test_balanced = []
 
         if not manual_mode:
-            self.one_hot_encode()
-            self.train_test_split()
-            self.do_all_preprocessing(self.__train, self.__test)
+            return_unscaled = not self.__scale_data
+            self.preprocess(return_unscaled=return_unscaled)
+    
+    def preprocess(self, return_unscaled=False):
+        self.one_hot_encode()
+        self.train_test_split()
+        self.preprocess_numeric(train_df=self.__train, test_df=self.__test, return_unscaled=return_unscaled)
 
-    def do_all_preprocessing(self, train, test):
-            self.__train = train
-            self.__test = test
-            self.__train = self.impute_and_normalise(dataframe=self.__train)
-            self.__test = self.impute_and_normalise(dataframe=self.__test, test=True, scaler=self.__scaler)
+    def preprocess_numeric(self, train_df=None, test_df=None, return_unscaled=False):
+            self.__train = train_df
+            self.__test = test_df
+            # MinMaxScaler so it doesnt matter if we scale before impute and we need to scale before impute of KNNImputer
+            self.__train = self.apply_scaler(self.__train,train=True, fit_only=return_unscaled)
+            self.__train = self.impute(dataframe=self.__train, train=True)
+            self.__test =self.apply_scaler(self.__test, fit_only=return_unscaled)
+            self.__test = self.impute(dataframe=self.__test)
             self.__train = self.create_averaged_features(dataframe=self.__train)
             self.__test = self.create_averaged_features(dataframe=self.__test)
             self.__x_train, self.__y_train = self.create_sequences(self.__train, self.__history_length, self.__horizon_length)
             self.__x_test, self.__y_test = self.create_sequences(self.__test, self.__history_length, self.__horizon_length)
-            self.__y_train_labels = self.create_labels(self.__y_train, sparse=False)
-            self.__y_test_labels = self.create_labels(self.__y_test, sparse=False)
-            self.__y_train_labels_sparse = self.create_labels(self.__y_train, sparse=True)
-            self.__y_test_labels_sparse = self.create_labels(self.__y_test, sparse=True)
+            scaled = not return_unscaled
+            self.__y_train_labels = self.create_labels(self.__y_train, sparse=False, scaled=scaled)
+            self.__y_test_labels = self.create_labels(self.__y_test, sparse=False, scaled=scaled)
+            self.__y_train_labels_sparse = self.create_labels(self.__y_train, sparse=True, scaled=scaled)
+            self.__y_test_labels_sparse = self.create_labels(self.__y_test, sparse=True, scaled=scaled)
 
             # NO LONGER BALANCING
             # self.__x_train_balanced, self.__y_train_balanced = self.balance_labels(self.__x_train, self.__y_train_labels, ignore_min_size=True, sparse=False)
@@ -151,7 +165,7 @@ class DataPreProcessor:
             for i in range(self.__df["session"].max()+1):
                 print("Processing Session:", i)
                 pre_processor = DataPreProcessor(self.__df[self.__df["session"]==i], manual_mode=True, create_train_test_split=True)
-                data = pre_processor.impute_and_normalise(pre_processor.get_df())
+                data = pre_processor.impute(pre_processor.get_df())
                 x, y = pre_processor.create_sequences(data, self.__history_length, self.__horizon_length)
                 y_labels = pre_processor.create_labels(y)
                 x_balanced, y_balanced = pre_processor.balance_labels(x, y_labels)
@@ -234,58 +248,57 @@ class DataPreProcessor:
             self.__df[self.__numeric_features+self.__geo_features]))
         print("Categorical features:", self.__categorical_features)
     
-    def impute_and_normalise(self, dataframe, test=False, scaler=None, return_true_values=False):
+    def impute(self, dataframe, train=False):
         # IMPORTANT: See Data_Expolration notebook for reasoning on imputation choices
 
-        # Is a scaler provided? If no and this is test data then throw an error.
-        if not scaler:
-            if test:
-                print("Error, test data must use a prior scaler created on the training data.")
-                return None
-            scaler = MinMaxScaler((-1,1))
-            # scaler = RobustScaler()
-        
+        # IMPORTANT IMPORTANT:: IF we ever get around to trying to implement this model in practice then: The MULTISTAGE MODEL WILL HAVE TO STORE MIN VALUES FOR ALL THE FEATURES ASWELL AS THE IMPUTER
+
         if "CQI" in self.__numeric_features:
-            dataframe["CQI"].fillna(dataframe["CQI"].min(), inplace=True)
+            if train:
+                dataframe["CQI"].fillna(dataframe["CQI"].min(), inplace=True)
+            else:
+                dataframe["CQI"].fillna(self.__train["CQI"].min(), inplace=True)
         
         if "SNR" in self.__numeric_features:
-            dataframe["SNR"].fillna(dataframe["SNR"].min(), inplace=True)
+            if train:
+                dataframe["SNR"].fillna(dataframe["SNR"].min(), inplace=True)
+            else:
+                dataframe["SNR"].fillna(self.__train["SNR"].min(), inplace=True)
 
         if "RSSI" in self.__numeric_features:
-            dataframe["RSSI"].fillna(dataframe["RSSI"].min(), inplace=True)
-
-        # Checking to see if the y variable is being used to predict itself.
-        if self.__use_predict:
-            order = self.__predict+self.__numeric_features[:-(len(self.__predict))]+self.__geo_features
-        else:
-            order = self.__numeric_features+self.__geo_features
-        x_data = dataframe[order]
-        # checking to see if scaler already trained.
-        if not test:
-            new_values = scaler.fit_transform(x_data)
-        else:
-            new_values = scaler.transform(x_data)
-
+            if train:
+                dataframe["RSSI"].fillna(dataframe["RSSI"].min(), inplace=True)
+            else:
+                dataframe["RSSI"].fillna(self.__train["RSSI"].min(), inplace=True)
         # NRxRSRP and NRxRSRQ require KNN-Imputation.
         require_KNN = ["NRxRSRP", "NRxRSRQ", "RSRP", "RSRQ"]
         require_KNN = [i for i in require_KNN if i in self.__numeric_features]
         if require_KNN:
-            imputer = KNNImputer(n_neighbors=5)
-            new_values = imputer.fit_transform(new_values)
+            data_to_impute = dataframe[require_KNN]
+            if train:
+                self.__imputer = KNNImputer(n_neighbors=5)
+                dataframe[require_KNN] = self.__imputer.fit_transform(data_to_impute)
+            else:
+                dataframe[require_KNN] = self.__imputer.transform(data_to_impute)
+        return dataframe
 
-        # Require the original values
-        if return_true_values:
-            new_values = scaler.inverse_transform(new_values)
-
-        # Reasssigning scaled and imputed data to the dataframe
-        dataframe[order] = new_values
-        if not test:
-            self.__scaler = scaler
-            self.__scaler_length = len(x_data.columns)
+    def apply_scaler(self, dataframe, train=False, fit_only=False):
+        # isolate numeric features
+        data_to_scale = dataframe[self.__features_to_scale]
+        if train:
+            self.__scaler = MinMaxScaler((-1, 1))
+            scaled_data = self.__scaler.fit_transform(data_to_scale)
+            self.__scaler_length = self.__scaler.n_features_in_
+        else:
+            scaled_data = self.__scaler.transform(data_to_scale)
+        if fit_only:
+            # don't return dataframe here until preprocessor is refactored to ensure that ordering of features is applied else where in returned dataframe
+            scaled_data = self.__scaler.inverse_transform(scaled_data)
+        dataframe[self.__features_to_scale] = scaled_data
         return dataframe
 
     def create_averaged_features(self, dataframe, history_window=5):
-        potential_features = ["SNR", "CQI", "RSSI", "NRxRSRQ", "NRxRSRP", "RSRP", "RSRQ"]
+        potential_features = ["SNR", "CQI", "RSSI", "NRxRSRP", "NRxRSRQ", "RSRQ", "RSRP"]
         features_to_average = [i for i in potential_features if i in self.__numeric_features and i in potential_features]
         updated_features = pd.DataFrame()
         groups = dataframe.groupby("session")
@@ -540,6 +553,9 @@ class DataPreProcessor:
         filepath = "src/saved.objects/"+filename
         pickle.dump(self.__scaler, open(filepath, "wb"))
 
+    def is_scaled(self):
+        return self.__scale_data
+
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None)
     # pre_processor = DataPreProcessor(raw_data)
@@ -549,7 +565,8 @@ if __name__ == "__main__":
     # x_train, train_y = pre_processor.get_train_sequences()
     # print(x_train)
 
-    preprocessor_multi3 = DataPreProcessor(raw_data, include_features=["RSRQ", "Longitude", "Latitude", "State", "NRxRSRQ"], scaler_file_name="DELETE.sav")
+    preprocessor_multi3 = DataPreProcessor(raw_data, include_features=["RSRQ", "Longitude", "Latitude", "State", "NRxRSRQ"], scaler_file_name="DELETE.sav", manual_mode=True)
+    preprocessor_multi3.preprocess(return_unscaled=True)
     x, y = preprocessor_multi3.get_train_sequences()
     k, z = preprocessor_multi3.get_test_sequences()
     print(x[100],"\n", y[100], "\n===========")
@@ -565,7 +582,7 @@ if __name__ == "__main__":
     # for i in range(raw_data["session"].max()+1):
     #     print("Processing Session:", i)
     #     pre_processor = DataPreProcessor(raw_data[raw_data["session"]==i], manual_mode=True)
-    #     data = pre_processor.impute_and_normalise(pre_processor.get_df())
+    #     data = pre_processor.impute(pre_processor.get_df())
     #     x, y = pre_processor.create_sequences(data, history, horizon)
     #     y_labels = pre_processor.create_labels(y)
     #     x_balanced, y_balanced = pre_processor.balance_labels(x, y_labels)
