@@ -11,24 +11,23 @@ config.read('.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 
-from models.model_framework import ModelFramework
+from training_models.model_framework import ModelFramework
 from data_transformation.preprocessor import DataPreProcessor
 from helper_functions.timer import TimingCallback
 
-class LabelPredictor(ModelFramework):
-    def __init__(self, raw_data=pd.DataFrame(), model_name="label_predictor_univariate", sparse=False):
+class ThroughputClassifier(ModelFramework):
+    def __init__(self, raw_data=pd.DataFrame(), preprocessor=None, model_name="label_predictor_univariate", sparse=False):
         super().__init__()
         self._raw_data = raw_data
         self._model_name = model_name
         self._sparse = sparse
+        self._preprocessor = preprocessor
 
-    def pre_process(self, preprocessor=None, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None):
-        if preprocessor:
-            self._preprocessor = preprocessor
-        else:
+    def pre_process(self, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, history=10, horizon=5, scale_data=True):
+        if not self._preprocessor:
             scaler_file_name = self._model_name + ".sav"
             self._preprocessor = DataPreProcessor(self._raw_data, include_features=include_features, predict=predict,
-            use_predict=use_predict, manual_mode=manual_mode, scaler=scaler, scaler_file_name=scaler_file_name)
+             use_predict=use_predict, manual_mode=manual_mode, scaler=scaler, scaler_file_name=scaler_file_name, history=history, horizon=horizon, scale_data=scale_data)
 
         # Basic formatting
         self._train_x, self._train_y = self._preprocessor.get_label_predictor_train(sparse=self._sparse)
@@ -57,7 +56,7 @@ class LabelPredictor(ModelFramework):
     def train(self, epochs=70, batch_size=100, validation_split=0.2):
         timer = TimingCallback()
         self._tensorboard = TensorBoard(log_dir="src/logs/{}".format(self._model_name))
-        self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=False)
+        self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=True)
         self._class_weights = self._preprocessor.get_class_weights()
         self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size,
          validation_split=validation_split, verbose=1, callbacks=[self._checkpointer, self._tensorboard, timer])
@@ -93,7 +92,7 @@ if __name__ == "__main__":
     # {0: 1.7086360253729758, 1: 1.1781551618814905, 2: 0.6385886840432295}
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
     preprocessor_univariate = DataPreProcessor(raw_data, scaler_file_name="throw_away_univariate.sav")
-    example = LabelPredictor(model_name="label_preditor_univariate_unweighted")
+    example = ThroughputClassifier(model_name="label_preditor_univariate_unweighted")
     example.pre_process(preprocessor=preprocessor_univariate)
     example.build_model()
     example.train()
