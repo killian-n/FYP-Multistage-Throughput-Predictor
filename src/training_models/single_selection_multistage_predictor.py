@@ -55,7 +55,7 @@ class SingleSelectionMultistagePredictor:
         med_labels = label[:,1].reshape((label.shape[0],1))
         high_labels = label[:,2].reshape((label.shape[0],1))
 
-        x_sequences = self.__inverse_scale(x_sequences)
+        x_sequences = self.inverse_scale(x_sequences)
 
         low_result = self._low_tp_model(x_sequences)*low_labels
         medium_result = self._medium_tp_model(x_sequences)*med_labels
@@ -84,7 +84,7 @@ class SingleSelectionMultistagePredictor:
             self._preprocessor = DataPreProcessor(self._raw_data, include_features=include_features, predict=predict,
                 use_predict=use_predict, manual_mode=manual_mode, scaler_file_name=scaler_file_name)
         self._test_x, self._test_y = self._preprocessor.get_test_sequences()
-        self._test_y = self.__inverse_scale(self._test_y, is_x=False)
+        self._test_y = self.inverse_scale(self._test_y, is_x=False)
 
     def build_and_train(self, epochs=70, batch_size=100, validation_split=0.2):
 
@@ -98,13 +98,13 @@ class SingleSelectionMultistagePredictor:
         self._label_predictor.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
         
         x_train, y_train = self._preprocessor.get_low_train_sequences()
-        x_train = self.__inverse_scale(x_train)
+        x_train = self.inverse_scale(x_train)
         print("Sample of x_train",x_train[0])
-        y_train = self.__inverse_scale(y_train, is_x=False)
+        y_train = self.inverse_scale(y_train, is_x=False)
         print("Sample of y_train",y_train[0])
         x_test, y_test = self._preprocessor.get_low_test_sequences()
-        x_test = self.__inverse_scale(x_test)
-        y_test = self.__inverse_scale(y_test, is_x=False)
+        x_test = self.inverse_scale(x_test)
+        y_test = self.inverse_scale(y_test, is_x=False)
         
         self._low_tp_model = MultiStageLSTM(model_name="{}_low".format(self._model_name), preprocessor=self._preprocessor)
         self._low_tp_model.set_train(train_x=x_train, train_y=y_train)
@@ -113,11 +113,11 @@ class SingleSelectionMultistagePredictor:
         self._low_tp_model.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
         x_train, y_train = self._preprocessor.get_medium_train_sequences()
-        x_train = self.__inverse_scale(x_train)
-        y_train = self.__inverse_scale(y_train, is_x=False)
+        x_train = self.inverse_scale(x_train)
+        y_train = self.inverse_scale(y_train, is_x=False)
         x_test, y_test = self._preprocessor.get_medium_test_sequences()
-        x_test = self.__inverse_scale(x_test)
-        y_test = self.__inverse_scale(y_test, is_x=False)
+        x_test = self.inverse_scale(x_test)
+        y_test = self.inverse_scale(y_test, is_x=False)
 
         self._medium_tp_model = MultiStageLSTM(model_name="{}_medium".format(self._model_name), preprocessor=self._preprocessor)
         self._medium_tp_model.set_train(train_x=x_train, train_y=y_train)
@@ -126,11 +126,11 @@ class SingleSelectionMultistagePredictor:
         self._medium_tp_model.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
 
         x_train, y_train = self._preprocessor.get_high_train_sequences()
-        x_train = self.__inverse_scale(x_train)
-        y_train = self.__inverse_scale(y_train, is_x=False)
+        x_train = self.inverse_scale(x_train)
+        y_train = self.inverse_scale(y_train, is_x=False)
         x_test, y_test = self._preprocessor.get_high_test_sequences()
-        x_test = self.__inverse_scale(x_test)
-        y_test = self.__inverse_scale(y_test, is_x=False)
+        x_test = self.inverse_scale(x_test)
+        y_test = self.inverse_scale(y_test, is_x=False)
 
         self._high_tp_model = MultiStageLSTM(model_name="{}_high".format(self._model_name), preprocessor=self._preprocessor)
         self._high_tp_model.set_train(train_x=x_train, train_y=y_train)
@@ -225,14 +225,14 @@ class SingleSelectionMultistagePredictor:
         mape = self.get_mape(self._test_y, predicted_y)
         self._results = [self._model_name, trainable_params, non_trainable_params, train_time, time_to_predict, mse, mae, average_bias, mape, model_size]
         self.write_to_csv()
-        self.save_output(self._test_x, self._model_name+"_test_x")
+        # self.save_output(self._test_x, self._model_name+"_test_x")
         self.save_output(predicted_y, self._model_name+"_predicted_y")
         self.save_output(self._test_y, self._model_name+"_true_y")
 
     def get_performance_metrics(self):
         return self._results
     
-    def __inverse_scale(self, input_array, is_x=True):
+    def inverse_scale(self, input_array, is_x=True):
         input_shape = input_array.shape
         if is_x:
              input_array = self._preprocessor.get_scaler().inverse_transform(input_array.reshape(-1, input_array.shape[-1])).reshape(input_shape)
@@ -251,16 +251,19 @@ class SingleSelectionMultistagePredictor:
             writer.writerow(self._results)
 
     def save_output(self,output,filename="DEFAULT_NAME_OUTPUTS"):
-        filename = "Datasets/Model_Outputs/"+filename
+        filename = "Datasets/Final_Outputs/"+filename
         np.save(filename, output)
 
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
-    preprocessor = DataPreProcessor(raw_data, scaler_file_name="debugging_scaler.sav", include_features=["NRxRSRQ", "RSRQ", "SNR", "CQI", "RSSI"])
-    example = SingleSelectionMultistagePredictor(preprocessor=preprocessor, model_name="multi_1")
+    # preprocessor = DataPreProcessor(raw_data, scaler_file_name="debugging_scaler.sav", include_features=["NRxRSRQ", "RSRQ", "SNR", "CQI", "RSSI"])
+    preprocessor = DataPreProcessor(raw_data, scaler_file_name="univariate_scaler.sav")
+    example = SingleSelectionMultistagePredictor(preprocessor=preprocessor, model_name="unop_univariate_multiOne")
     example.pre_process()
-    example.build_and_train()
+    example.build_and_train(epochs=70)
     example.test()
+    for i in range(1):
+        print(i)
     # b = example.get_performance_metrics()
     # print(b)
     # transform = np.zeros((1, 7))
