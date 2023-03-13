@@ -45,7 +45,7 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         med_labels = label[:,1].reshape((label.shape[0],1))
         high_labels = label[:,2].reshape((label.shape[0],1))
 
-        x_sequences = self.__inverse_scale(x_sequences)
+        x_sequences = self.inverse_scale(x_sequences)
 
         low_result = self._low_tp_model(x_sequences)*low_labels
         medium_result = self._medium_tp_model(x_sequences)*med_labels
@@ -62,8 +62,8 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         if not self._pretrained_name:
             super().build_and_train()
         else:
-            self._label_predictor = ThroughputClassifier(model_name=self._model_name+"_label_predictor", sparse=sparse)
-            self._label_predictor.pre_process(preprocessor=self._preprocessor)
+            self._label_predictor = ThroughputClassifier(preprocessor=self._preprocessor, model_name=self._model_name+"_classifier", sparse=sparse)
+            self._label_predictor.pre_process()
             self._label_predictor.build_model(loss=self._loss)
             self._label_predictor.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)
             self._input_shape = self._label_predictor.get_input_shape()
@@ -122,11 +122,11 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
 
     def __load_seq_models(self):
         x_train, y_train = self._preprocessor.get_low_train_sequences()
-        x_train = self.__inverse_scale(x_train)
-        y_train = self.__inverse_scale(y_train, is_x=False)
+        x_train = self.inverse_scale(x_train)
+        y_train = self.inverse_scale(y_train, is_x=False)
         x_test, y_test = self._preprocessor.get_low_test_sequences()
-        x_test = self.__inverse_scale(x_test)
-        y_test = self.__inverse_scale(y_test, is_x=False)
+        x_test = self.inverse_scale(x_test)
+        y_test = self.inverse_scale(y_test, is_x=False)
 
         self._low_tp_model = MultiStageLSTM(model_name="{}_low".format(self._model_name))
         low_tp_model = tf.keras.models.load_model("src/saved.objects/{}_low.hdf5".format(self._pretrained_name))
@@ -135,11 +135,11 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         self._low_tp_model.set_model(low_tp_model)
 
         x_train, y_train = self._preprocessor.get_medium_train_sequences()
-        x_train = self.__inverse_scale(x_train)
-        y_train = self.__inverse_scale(y_train, is_x=False)
+        x_train = self.inverse_scale(x_train)
+        y_train = self.inverse_scale(y_train, is_x=False)
         x_test, y_test = self._preprocessor.get_medium_test_sequences()
-        x_test = self.__inverse_scale(x_test)
-        y_test = self.__inverse_scale(y_test, is_x=False)
+        x_test = self.inverse_scale(x_test)
+        y_test = self.inverse_scale(y_test, is_x=False)
 
         self._medium_tp_model = MultiStageLSTM(model_name="{}_medium".format(self._model_name))
         medium_tp_model = tf.keras.models.load_model("src/saved.objects/{}_medium.hdf5".format(self._pretrained_name))
@@ -148,11 +148,11 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         self._medium_tp_model.set_model(medium_tp_model)
 
         x_train, y_train = self._preprocessor.get_high_train_sequences()
-        x_train = self.__inverse_scale(x_train)
-        y_train = self.__inverse_scale(y_train, is_x=False)
+        x_train = self.inverse_scale(x_train)
+        y_train = self.inverse_scale(y_train, is_x=False)
         x_test, y_test = self._preprocessor.get_high_test_sequences()
-        x_test = self.__inverse_scale(x_test)
-        y_test = self.__inverse_scale(y_test, is_x=False)
+        x_test = self.inverse_scale(x_test)
+        y_test = self.inverse_scale(y_test, is_x=False)
 
         self._high_tp_model = MultiStageLSTM(model_name="{}_high".format(self._model_name))
         high_tp_model = tf.keras.models.load_model("src/saved.objects/{}_high.hdf5".format(self._pretrained_name))
@@ -164,11 +164,7 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
     
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
-    # preprocessor_univariate = DataPreProcessor(raw_data)
-    multi_all_univariate = MultiSelectionMultistagePredictor(pretrained_sequence_models="SSMSP")
-    # example = MultiSelectionMultistagePredictor(raw_data)
-    # example.pre_process()
-    # example.build_and_train()
-    # example.test()
-    # b = example.get_performance_metrics()
-    # print(b)
+    preprocessor_univariate = DataPreProcessor(raw_data, scaler_file_name="univariate.sav")
+    multi_all_univariate = MultiSelectionMultistagePredictor(preprocessor=preprocessor_univariate,model_name="unop_univariate_multiAll", pretrained_sequence_models="unop_univariate_multiOne")
+    multi_all_univariate.build_and_train()
+    multi_all_univariate.test()
