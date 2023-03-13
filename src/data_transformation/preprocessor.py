@@ -75,6 +75,14 @@ class DataPreProcessor:
         else:
             self.__features_to_scale = self.__numeric_features+self.__geo_features
 
+
+        # Remove a large outlier that messed with scaler for this feature
+        if "NRxRSRQ" in self.__numeric_features:
+            row = self.__df[self.__df["NRxRSRQ"]==self.__df["NRxRSRQ"].min()].index[0]
+            column = self.__df.columns.get_loc("NRxRSRQ")
+            self.__df.iloc[row, column] = 0
+            self.__df.iloc[row, column] = self.__df["NRxRSRQ"].min()
+        
         # Output variables for use in models
         self.__features = []
 
@@ -274,12 +282,12 @@ class DataPreProcessor:
         require_KNN = ["NRxRSRP", "NRxRSRQ", "RSRP", "RSRQ"]
         require_KNN = [i for i in require_KNN if i in self.__numeric_features]
         if require_KNN:
-            data_to_impute = dataframe[require_KNN]
+            data_to_impute = dataframe.drop(columns=["Timestamp", "session"]).columns.tolist()
             if train:
                 self.__imputer = KNNImputer(n_neighbors=5)
-                dataframe[require_KNN] = self.__imputer.fit_transform(data_to_impute)
+                dataframe[data_to_impute] = self.__imputer.fit_transform(dataframe[data_to_impute])
             else:
-                dataframe[require_KNN] = self.__imputer.transform(data_to_impute)
+                dataframe[data_to_impute] = self.__imputer.transform(dataframe[data_to_impute])
         return dataframe
 
     def apply_scaler(self, dataframe, train=False, fit_only=False):
