@@ -7,6 +7,7 @@ from sklearn.preprocessing import MinMaxScaler
 from keras.utils.layer_utils import count_params
 import numpy as np
 from time import time
+import pickle
 
 config = configparser.ConfigParser()
 config.read('.env')
@@ -30,17 +31,17 @@ class MultiStageLSTM(ModelFramework):
     def __call__(self, inputs):
         inputs = self.__scale(inputs)
         predictions = self._model(inputs)
-        predictions = self.__inverse_scale_predictions(predictions)
+        predictions = self.inverse_scale_predictions(predictions)
         return predictions
 
     def predict(self, inputs, test=False):
         if not test:
             inputs = self.__scale(inputs)
         predictions = self._model.predict(inputs)
-        predictions = self.__inverse_scale_predictions(predictions)
+        predictions = self.inverse_scale_predictions(predictions)
         return predictions
 
-    def __inverse_scale_predictions(self, results):
+    def inverse_scale_predictions(self, results):
         results_shape = results.shape
         results = np.squeeze(results).flatten()
         transform = np.zeros((len(results), self._scaler.n_features_in_))
@@ -54,6 +55,7 @@ class MultiStageLSTM(ModelFramework):
             if is_x_train:
                 self._scaler = MinMaxScaler((-1, 1))
                 input_array = self._scaler.fit_transform(input_array.reshape(-1, input_array.shape[-1])).reshape(input_shape)
+                self.save_scaler()
             else:
                 input_array = self._scaler.transform(input_array.reshape(-1, input_array.shape[-1])).reshape(input_shape)
         else:
@@ -90,14 +92,21 @@ class MultiStageLSTM(ModelFramework):
 
     def build_model(self):
         epsilon = self.__compute_epsilon()
-        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(128, input_shape=(self._train_x.shape[1], self._train_x.shape[2]), return_sequences=True))
+        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(256, input_shape=(self._train_x.shape[1], self._train_x.shape[2]), return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.3))
-        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64,return_sequences=True))
+        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(128,return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.3))
-        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(32,return_sequences=False))
+        self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64,return_sequences=False))
         self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.keras.layers.Dense(self._train_y.shape[1], name="OUT_{}".format(self._model_name)))
+        # OPTION 1
         self._model.compile(optimizer="adam", loss=self.custom_loss(epsilon), metrics=[tf.keras.metrics.MeanSquaredError(), tf.keras.metrics.MeanAbsoluteError()])
+        # #####
+
+        # # OPTION 2
+        # self._model.compile(optimizer="adam", loss="mse", metrics=[tf.keras.metrics.MeanAbsoluteError()])
+        # #####
+
         self._model.summary()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
         self.set_input_shape()
         self.set_output_shape()
@@ -118,14 +127,21 @@ class MultiStageLSTM(ModelFramework):
         time_to_predict = time()-predict_start
         time_to_predict = time_to_predict/self._test_y.shape[0]
         test = self._model.evaluate(self._test_x, self._test_y, batch_size=100)
+
+        # OPTION 1
         mape, mse, mae = test[0], test[1], test[2]
-        # mape = self.get_mape(self._test_y, predicted_y)
-        average_bias = self.get_average_bias(self.__inverse_scale_predictions(self._test_y), predicted_y)
+        #####
+
+        # OPTION 2
+        # mse, mae = test[0], test[1]
+        # mape = self.get_mape(self.inverse_scale_predictions(self._test_y), predicted_y)
+        #####
+        average_bias = self.get_average_bias(self.inverse_scale_predictions(self._test_y), predicted_y)
         model_size = self.get_model_size()
         self._results = [self._model_name, trainable_params, non_trainable_params, self._train_time, time_to_predict, mse, mae, average_bias, mape, model_size]
         self.write_to_csv()
         self.save_output(predicted_y, self._model_name+"_predicted_y")
-        self.save_output(self._test_y, self._model_name+"_true_y")
+        self.save_output(self.inverse_scale_predictions(self._test_y), self._model_name+"_true_y")
 
     def __compute_epsilon(self, epsilon=50):
         scaler = self._scaler
@@ -147,27 +163,18 @@ class MultiStageLSTM(ModelFramework):
 
     def get_performance_metrics(self):
         return self._results
+        
+    def save_scaler(self):
+        filename = self._model_name+"_scaler.sav"
+        filepath = "src/saved.objects/"+filename
+        pickle.dump(self._scaler, open(filepath, "wb"))
 
 
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
-    # [1179.720947265625, 0.6580678224563599, 0.5000829100608826]
-    # pre_processor = DataPreProcessor(raw_data, manual_mode=False, scaler_file_name="base_model_multivariate_scaler",
-    #  include_features=["CQI", "RSRQ","State", "NRxRSRQ", "Longitude", "Latitude", "Speed"], history=10, horizon=5)
-    # [689.5520629882812, 0.6595041155815125, 0.5026030540466309]
-    pre_processor = DataPreProcessor(raw_data, manual_mode=False, scaler_file_name="delete_this")
-    # [16499.181640625, 0.6543842554092407, 0.4942069947719574]
-    # pre_processor = DataPreProcessor(raw_data, manual_mode=False, scaler_file_name="base_model_multivariate_scaler_2",
-    #  include_features=["RSRQ","State", "NRxRSRQ", "Longitude", "Latitude"], history=10, horizon=5)
-    # [709.9197998046875, 0.6604500412940979, 0.5026734471321106]
-    # pre_processor = DataPreProcessor(raw_data, manual_mode=False, scaler_file_name="base_model_multivariate_scaler_5",
-    #  include_features=["RSRQ","State", "NRxRSRQ"], history=10, horizon=5)
-
-    # pre_processor = DataPreProcessor(raw_data, manual_mode=False, scaler_file_name="base_model_multivariate_scaler_4",
-    #  include_features=["RSRQ", "NRxRSRQ"], history=10, horizon=5)
-
-    example = MultiStageLSTM(preprocessor=pre_processor, model_name="delete_this")
+    pre_processor = DataPreProcessor(raw_data, manual_mode=False, scaler_file_name="univariate.sav")
+    example = MultiStageLSTM(preprocessor=pre_processor, model_name="unop_univariate_multiAll")
     example.pre_process()
     example.build_model()
-    example.train(epochs=1)
+    example.train(epochs=70)
     example.test()
