@@ -55,14 +55,13 @@ class ModelFramework(ABC):
         time_to_predict = time()-predict_start
         time_to_predict = time_to_predict/self._test_y.shape[0]
         test = self._model.evaluate(self._test_x, self._test_y, batch_size=100)
-        mse, mae = test[0], test[1]
-        mape = self.get_mape(self._test_y, predicted_y)
+        mape, mse, mae = test[0], test[1], test[2]
         average_bias = self.get_average_bias(self._test_y, predicted_y)
         model_size = self.get_model_size()
         self._results = [self._model_name, trainable_params, non_trainable_params, self._train_time, time_to_predict, mse, mae, average_bias, mape, model_size]
         self.write_to_csv()
-        self.save_output(predicted_y, self._model_name+"_predicted_y")
-        self.save_output(self._test_y, self._model_name+"_true_y")
+        self.save_output(self.inverse_scale_predictions(predicted_y), self._model_name+"_predicted_y")
+        self.save_output(self.inverse_scale_predictions(self._test_y), self._model_name+"_true_y")
 
     def set_model(self, model):
         self._model = model
@@ -104,7 +103,7 @@ class ModelFramework(ABC):
         return self._preprocessor
     
     def save_output(self,output,filename="DEFAULT_NAME_OUTPUTS"):
-        filename = "Datasets/Model_Outputs/"+filename
+        filename = "Datasets/Final_Outputs/"+filename
         np.save(filename, output)
 
     def get_model_size(self):
@@ -113,7 +112,7 @@ class ModelFramework(ABC):
         model_size = file_stats.st_size/(1024*1024)
         return model_size
     
-    def __compute_epsilon(self, epsilon=50):
+    def compute_epsilon(self, epsilon=50):
         scaler = self._preprocessor.get_scaler()
         transform = np.zeros((1, scaler.n_features_in_))
         transform[0,0] = epsilon
@@ -121,11 +120,20 @@ class ModelFramework(ABC):
         epsilon = transform[0,0]
         return epsilon
     
-    def __scale(self, input_array):
+    def scale(self, input_array):
         input_shape = input_array.shape
         self._scaler = self._preprocessor.get_scaler()
         input_array = self._scaler.transform(input_array.reshape(-1, input_array.shape[-1])).reshape(input_shape)
         return input_array
+    
+    def inverse_scale_predictions(self, results):
+        results_shape = results.shape
+        scaler = self._preprocessor.get_scaler()
+        results = np.squeeze(results).flatten()
+        transform = np.zeros((len(results), scaler.n_features_in_))
+        transform[:,0] = results
+        results = scaler.inverse_transform(transform)[:,0]
+        return results.reshape(results_shape)
     
     def custom_loss(self, dl_epsilon):
         def mean_absolute_percentage_error(y_true, y_pred):
