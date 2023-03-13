@@ -10,3 +10,5 @@ src/helper_functions/__pycache__/
 src/saved.objects/
 Own Papers/
 Datasets/
+model_tuning/
+src/old/
