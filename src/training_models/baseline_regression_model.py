@@ -2,6 +2,7 @@ import configparser
 import sys
 import tensorflow as tf
 from time import time
+from keras.utils.layer_utils import count_params
 import numpy as np
 from keras.callbacks import ModelCheckpoint, TensorBoard
 import pandas as pd
@@ -39,13 +40,19 @@ class BaselineLSTM(ModelFramework):
         self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64,return_sequences=False))
         self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.keras.layers.Dense(self._train_y.shape[1], name="OUT_{}".format(self._model_name)))
-        self._model.compile(optimizer="adam", loss=self.custom_loss(epsilon), metrics=[tf.keras.metrics.MeanSquaredError(), tf.keras.metrics.MeanAbsoluteError()])
-        # self._model.compile(optimizer="adam", loss="mse", metrics=[tf.keras.metrics.MeanAbsoluteError()])
+        # Option One
+        # self._model.compile(optimizer="adam", loss=self.custom_loss(epsilon), metrics=[tf.keras.metrics.MeanSquaredError(), tf.keras.metrics.MeanAbsoluteError()])
+        ####
+
+        # Option Two
+        self._model.compile(optimizer="adam", loss="mse", metrics=[tf.keras.metrics.MeanAbsoluteError()])
+        ####
+        
         self._model.summary()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
         self.set_input_shape()
         self.set_output_shape()
 
-    def train(self, epochs=70, batch_size=100, validation_split=0.2):
+    def train(self, epochs=70, batch_size=32, validation_split=0.2):
         timer = TimingCallback()
         self._tensorboard = TensorBoard(log_dir="src/logs/{}".format(self._model_name))
         self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=True)
@@ -54,7 +61,27 @@ class BaselineLSTM(ModelFramework):
         self._train_time = sum(timer.logs)
 
     def test(self):
-        super().test()
+        trainable_params = count_params(self._model.trainable_weights)
+        non_trainable_params = count_params(self._model.non_trainable_weights)
+        predict_start = time()
+        predicted_y = self._model.predict(self._test_x)
+        time_to_predict = time()-predict_start
+        time_to_predict = time_to_predict/self._test_y.shape[0]
+        test = self._model.evaluate(self._test_x, self._test_y, batch_size=100)
+        # option One
+        # mape, mse, mae = test[0], test[1], test[2]
+        ######
+        # Option Two
+        mse, mae = test[0], test[1]
+        mape = self.get_mape(self._test_y, predicted_y)
+        ######
+
+        average_bias = self.get_average_bias(self._test_y, predicted_y)
+        model_size = self.get_model_size()
+        self._results = [self._model_name, trainable_params, non_trainable_params, self._train_time, time_to_predict, mse, mae, average_bias, mape, model_size]
+        self.write_to_csv()
+        self.save_output(self.__inverse_scale_predictions(predicted_y), self._model_name+"_predicted_y")
+        self.save_output(self.__inverse_scale_predictions(self._test_y), self._model_name+"_true_y")
         low_test_x, low_test_y = self._preprocessor.get_low_test_sequences()
         med_test_x, med_test_y = self._preprocessor.get_medium_test_sequences()
         high_test_x, high_test_y = self._preprocessor.get_high_test_sequences()
@@ -68,7 +95,16 @@ class BaselineLSTM(ModelFramework):
         time_to_predict = time()-predict_start
         time_to_predict = time_to_predict/y.shape[0]
         test = self._model.evaluate(x, y, batch_size=100)
-        mape, mse, mae = test[0], test[1], test[2]
+
+        # Option One
+        # mape, mse, mae = test[0], test[1], test[2]
+        #######
+
+        # Option Two
+        mse, mae = test[0], test[1]
+        mape = self.get_mape(y, predicted_y)
+        ######
+
         average_bias = self.get_average_bias(y, predicted_y)
         model_name = self._model_name+"_"+suffix
         self._results[0] = model_name
@@ -81,9 +117,42 @@ class BaselineLSTM(ModelFramework):
         # self.save_output(self._train_x, self._model_name+"_train_x")
         # self.save_output(self._train_y, self._model_name+"_train_y")
         # self.save_output(self._test_x, self._model_name+"_test_x")
-        self.save_output(self.inverse_scale_predictions(predicted_y), model_name+"_predicted_y")
-        self.save_output(self.inverse_scale_predictions(y), model_name+"_true_y")
+        self.save_output(self.__inverse_scale_predictions(predicted_y), model_name+"_predicted_y")
+        self.save_output(self.__inverse_scale_predictions(y), model_name+"_true_y")
+    
+    def compute_epsilon(self, epsilon=50):
+        scaler = self._preprocessor.get_scaler()
+        transform = np.zeros((1, scaler.n_features_in_))
+        transform[0,0] = epsilon
+        transform = scaler.transform(transform)
+        epsilon = transform[0,0]
+        return epsilon
+    
+    def scale(self, input_array):
+        input_shape = input_array.shape
+        self._scaler = self._preprocessor.get_scaler()
+        input_array = self._scaler.transform(input_array.reshape(-1, input_array.shape[-1])).reshape(input_shape)
+        return input_array
+    
+    def __inverse_scale_predictions(self, results):
+        results_shape = results.shape
+        scaler = self._preprocessor.get_scaler()
+        results = np.squeeze(results).flatten()
+        transform = np.zeros((len(results), scaler.n_features_in_))
+        transform[:,0] = results
+        results = scaler.inverse_transform(transform)[:,0]
+        return results.reshape(results_shape)
 
+    def get_mape(self, true, predicted, epsilon=50):
+        epsilon = self.compute_epsilon(epsilon=epsilon)
+        denominator = np.squeeze(true) + epsilon
+        try:
+            mape = np.mean(np.abs((np.squeeze(true) - predicted)/denominator))*100
+        except Exception as e:
+            print(e)
+            mape = "n/a"
+        return mape
+    
     def get_performance_metrics(self):
         return self._results
 
