@@ -12,20 +12,15 @@ from data_transformation.preprocessor import DataPreProcessor
 from training_models.single_selection_multistage_predictor import SingleSelectionMultistagePredictor
 from training_models.multi_selection_multistage_predictor import MultiSelectionMultistagePredictor
 from training_models.baseline_regression_model import BaselineLSTM
+from training_models.optimized_models import optimizedBaseline
 
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
 
     # Univariate
-    # preprocessor_univariate = DataPreProcessor(raw_data)
-    # multi_one_univariate = SingleSelectionMultistagePredictor(preprocessor=preprocessor_univariate, model_name="multi_one_complex_univariate")
-    # base_univariate = ComplexLSTM(preprocessor=preprocessor_univariate, model_name="base_univariate_min_max")
-
-
-    # Univariate Save best only
-    # preprocessor_univariate = DataPreProcessor(raw_data)
-    # multi_one_univariate = SingleSelectionMultistagePredictor(preprocessor=preprocessor_univariate, model_name="multi_one_univariate")
-    # base_univariate = ComplexLSTM(preprocessor=preprocessor_univariate, model_name="base_univariate")
+    preprocessor_univariate = DataPreProcessor(raw_data)
+    multi_one_univariate = SingleSelectionMultistagePredictor(preprocessor=preprocessor_univariate, model_name="unop_univariate_multiOne")
+    univariate_baseline = BaselineLSTM(preprocessor=preprocessor_univariate, model_name="unop_univariate_baseline")
 
     # # 1
     # # Multivariate with RSRQ
@@ -62,10 +57,10 @@ if __name__ == "__main__":
 
     # 5
     all_network_preprocessor = DataPreProcessor(raw_data, scaler_file_name="all_network_features.sav", include_features=["NRxRSRQ", "RSRQ","RSRP" ,"SNR", "CQI", "RSSI", "NRxRSRP"])
-    all_network_baseline = BaselineLSTM(preprocessor=all_network_preprocessor, model_name="unop_all_network_baseline")
-    all_network_multiOne = SingleSelectionMultistagePredictor(preprocessor=all_network_preprocessor, model_name="unop_all_network_multiOne")
+    # all_network_baseline = BaselineLSTM(preprocessor=all_network_preprocessor, model_name="unop_all_network_baseline")
+    all_network_multiOne = SingleSelectionMultistagePredictor(preprocessor=all_network_preprocessor, model_name="all_network_multiOne")
 
-    models_to_test = [all_network_baseline, all_network_multiOne]
+    models_to_test = [all_network_multiOne]
 
     # with open(config["metrics"]["RESULTS_PATH"], "a", newline="") as f:
     #     writer = csv.writer(f)
@@ -80,8 +75,13 @@ if __name__ == "__main__":
         model.test()
 
     all_network_multiAll = MultiSelectionMultistagePredictor(preprocessor=all_network_preprocessor,
-                                                            pretrained_sequence_models="unop_all_network_multiOne",
-                                                                model_name="unop_all_network_multiAll")
+                                                            pretrained_sequence_models="all_network_multiOne",
+                                                                model_name="all_network_multiAll")
     all_network_multiAll.pre_process()
     all_network_multiAll.build_and_train()
     all_network_multiAll.test()
+    # univariate_multiAll = MultiSelectionMultistagePredictor(preprocessor=preprocessor_univariate,
+    #                                                          model_name="unop_univariate_multiAll", pretrained_sequence_models="unop_univariate_multiOne")
+    # univariate_multiAll.pre_process()
+    # univariate_multiAll.build_and_train()
+    # univariate_multiAll.test()
