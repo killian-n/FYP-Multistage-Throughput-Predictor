@@ -1,0 +1,26 @@
+\documentclass[12pt]{report}
+\usepackage[margin=2cm]{geometry}
+\usepackage{titlesec, sectsty, amsmath, mathtools, graphicx, numprint, titling}
+\title{Multistage Predictor for Cellular Network Throughput Prediction}
+\author{Killian Nolan}
+\date{2023}
+\titleformat{\chapter}[display]
+{\normalfont\bfseries}{}{0pt}{\fontsize{20}{16}\selectfont}
+\newcommand*{\figuretitle}[1]{%
+    {\centering%   <--------  will only affect the title because of the grouping (by the
+    \textbf{#1}%              braces before \centering and behind \medskip). If you remove
+    \par\medskip}%            these braces the whole body of a {figure} env will be centered.
+}
+\begin{document}
+\maketitle
+\newgeometry{top=0.9cm, left=2cm}
+\include{abstract.tex}
+\include{declaration.tex}
+\include{acknowledgements.tex}
+\tableofcontents
+\include{introduction.tex}
+\include{analysis.tex}
+\include{design.tex}
+\include{testing.tex}
+\include{conclusions.tex}
+\end{document}

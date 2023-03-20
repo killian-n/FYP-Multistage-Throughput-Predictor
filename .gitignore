@@ -8,7 +8,15 @@ src/training_models/__pycache__/
 src/logs/
 src/helper_functions/__pycache__/
 src/saved.objects/
-Own Papers/
+Own Papers/Brief Report on Findings
 Datasets/
 model_tuning/
 src/old/
+Own Papers/Undergraduate Paper/*.pdf
+Own Papers/Undergraduate Paper/*.aux
+Own Papers/Undergraduate Paper/*.synctex.gz
+Own Papers/Undergraduate Paper/*.toc
+Own Papers/Undergraduate Paper/*.bbl
+Own Papers/Undergraduate Paper/*.dvi
+Own Papers/Undergraduate Paper/*.log
+Own Papers/Undergraduate Paper/*.blg
