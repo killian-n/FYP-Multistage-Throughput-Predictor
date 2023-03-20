@@ -18,6 +18,7 @@ class optimizedBaseline(BaselineLSTM):
         self._model.add(tf.keras.layers.Dropout(.1))
         self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(96,return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.2))
+        self._model.add(tf.keras.layers.Flatten())
         self._model.add(tf.keras.layers.Dense(40, activation="relu"))
         self._model.add(tf.keras.layers.Dropout(.1))
         self._model.add(tf.keras.layers.Dense(40, activation="relu"))
