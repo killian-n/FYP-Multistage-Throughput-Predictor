@@ -13,6 +13,7 @@ from training_models.single_selection_multistage_predictor import SingleSelectio
 from training_models.classifier import ThroughputClassifier
 from training_models.multistage_regression_model import MultiStageLSTM
 from data_transformation.preprocessor import DataPreProcessor
+from training_models.optimized_models import optimizedClassifierModel, optimizedLowRegressionModel, optimizedMediumRegressionModel, optimizedHighRegressionModel
 
 
 # Change name to multistage all
@@ -53,7 +54,7 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         result = low_result + medium_result + high_result
         return result
 
-    def build_and_train(self, epochs=70, batch_size=100, validation_split=0.2):
+    def build_and_train(self, epochs=100, batch_size=100, validation_split=0.2):
         if self._loss == "sparse_categorical_crossentropy":
             sparse=True
         else:
@@ -62,7 +63,7 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         if not self._pretrained_name:
             super().build_and_train()
         else:
-            self._label_predictor = ThroughputClassifier(preprocessor=self._preprocessor, model_name=self._model_name+"_classifier", sparse=sparse)
+            self._label_predictor = optimizedClassifierModel(preprocessor=self._preprocessor, model_name=self._model_name+"_classifier", sparse=sparse)
             self._label_predictor.pre_process()
             self._label_predictor.build_model(loss=self._loss)
             self._label_predictor.train(epochs=epochs, batch_size=batch_size, validation_split=validation_split)

@@ -52,7 +52,7 @@ class BaselineLSTM(ModelFramework):
         self.set_input_shape()
         self.set_output_shape()
 
-    def train(self, epochs=70, batch_size=32, validation_split=0.2):
+    def train(self, epochs=100, batch_size=32, validation_split=0.2):
         timer = TimingCallback()
         self._tensorboard = TensorBoard(log_dir="src/logs/{}".format(self._model_name))
         self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=True)

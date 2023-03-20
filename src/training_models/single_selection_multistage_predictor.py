@@ -87,7 +87,7 @@ class SingleSelectionMultistagePredictor:
         self._test_x, self._test_y = self._preprocessor.get_test_sequences()
         self._test_y = self.inverse_scale(self._test_y, is_x=False)
 
-    def build_and_train(self, epochs=70, batch_size=32, validation_split=0.2):
+    def build_and_train(self, epochs=100, batch_size=32, validation_split=0.2):
 
         if self._loss == "sparse_categorical_crossentropy":
             sparse=True
