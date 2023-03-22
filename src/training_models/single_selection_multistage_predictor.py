@@ -15,6 +15,7 @@ from training_models.multistage_regression_model import MultiStageLSTM
 from training_models.classifier import ThroughputClassifier
 from data_transformation.preprocessor import DataPreProcessor
 from training_models.optimized_models import optimizedClassifierModel, optimizedLowRegressionModel, optimizedMediumRegressionModel, optimizedHighRegressionModel
+from training_models.standardized_models import standardizedMultistageRegression
 
 
 # Change name to multistage_one
@@ -109,7 +110,7 @@ class SingleSelectionMultistagePredictor:
         print("Sample of x_test", x_test[0])
         print("sample of y_test", y_test[0])
         
-        self._low_tp_model = optimizedLowRegressionModel(model_name="{}_low".format(self._model_name), preprocessor=self._preprocessor)
+        self._low_tp_model = standardizedMultistageRegression(model_name="{}_low".format(self._model_name), preprocessor=self._preprocessor)
         self._low_tp_model.set_train(train_x=x_train, train_y=y_train)
         self._low_tp_model.set_test(test_x=x_test, test_y=y_test)
         self._low_tp_model.build_model()
@@ -122,7 +123,7 @@ class SingleSelectionMultistagePredictor:
         x_test = self.inverse_scale(x_test)
         y_test = self.inverse_scale(y_test, is_x=False)
 
-        self._medium_tp_model = optimizedMediumRegressionModel(model_name="{}_medium".format(self._model_name), preprocessor=self._preprocessor)
+        self._medium_tp_model = standardizedMultistageRegression(model_name="{}_medium".format(self._model_name), preprocessor=self._preprocessor)
         self._medium_tp_model.set_train(train_x=x_train, train_y=y_train)
         self._medium_tp_model.set_test(test_x=x_test, test_y=y_test)
         self._medium_tp_model.build_model()
@@ -135,7 +136,7 @@ class SingleSelectionMultistagePredictor:
         x_test = self.inverse_scale(x_test)
         y_test = self.inverse_scale(y_test, is_x=False)
 
-        self._high_tp_model = optimizedHighRegressionModel(model_name="{}_high".format(self._model_name), preprocessor=self._preprocessor)
+        self._high_tp_model = standardizedMultistageRegression(model_name="{}_high".format(self._model_name), preprocessor=self._preprocessor)
         self._high_tp_model.set_train(train_x=x_train, train_y=y_train)
         self._high_tp_model.set_test(test_x=x_test, test_y=y_test)
         self._high_tp_model.build_model()
