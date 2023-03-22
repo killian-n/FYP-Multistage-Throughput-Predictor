@@ -7,7 +7,6 @@ Research_Papers/
 src/training_models/__pycache__/
 src/logs/
 src/helper_functions/__pycache__/
-src/saved.objects/
 Own Papers/Brief Report on Findings
 Datasets/Model_Outputs
 model_tuning/
