@@ -2,7 +2,45 @@
 
 
 \section{Background on Cellular Networks}
-A basic understanding of the cellular network architecture will help with understanding the dataset used in this project. Cellular networks, be that 4G, 5G or any previous generation use electromagnetic waves to carry data. The access points for cellular networks are referred to as base stations or sometimes as cell towers. Base stations are what mobile devices such as your phone or laptop will connect to for its internet connection. As the main point of contact for mobile devices, we will focus our understanding of cellular networks solely on the interaction between mobile devices and base stations. A 
+\textbf{INCLUDE ILLUSTRATIONS}
+
+A basic understanding of the cellular network architecture will help with understanding the dataset used in this project. Cellular networks, be that 4G, 5G or any previous generation use electromagnetic waves to carry data. The access points for cellular networks are referred to as base stations or sometimes as cell towers. Base stations are what mobile devices such as your phone or laptop will connect to for its internet connection. As the main point of contact for mobile devices, we will focus our understanding of cellular networks solely on the interaction between mobile devices and base stations. \\
+
+The provider of a cellular network is allocated a frequency band which it can use to provide internet connection. Typically mobile providers would have multiple bands to leverage for different use cases. Bands spanning higher frequency ranges are capable of carrying more data (higher bitrate), however they suffer from having short range and less of an ability to penetrate  common obstructions such as walls. Lower frequency bands conversely, have longer range and a better ability to penetrate obstacles but a lower bitrate. As such lower frequency bands tend to be used to serve rural areas, where the longer range and better penetration are best utilised and higher frequency waves are used in densely populated areas such as cities or towns. \\
+
+When a mobile device utilises a cellular network it is allocated a sub-section of the frequency band of the provider. The width of the band allocated to the mobile device depends on the bandwidth available as well as the bitrate required for the connection. For 4G LTE, the smallest sub-band a user can be allocated 180kHz in width. From this sub-band 12 orthogonal frequencies will be chosen. Orthogonal in this case means that the electromagnetic waves do not interfere with one another. Data can be encoded in each of these waves individually. As such the bitrate a user has access to is a product of the number of orthogonal waves they are allocated (bandwidth) as well as the frequency of said waves. \\
+
+Due to the use of high frequency bands and a larger user base, cellular communication in cities and towns presents a challenge for throughput prediction algorithms. The short range of waves in higher frequency bands means that mobile devices must jump between different base stations frequently. Obstructions are also abundant in such areas which may lead to intermittent connection disruption, from simple buildings to more dynamic obstructions such as cars or even other people. There is also more electromagnetic interference due to the density of devices that leverage wireless communication technologies. The 5G specification also makes available higher frequency bands (24GHz to 40GHz) for cellular providers to make use of. Waves in this range will experience even greater range and penetration challenges than those used by 4G LTE networks. \\
 
 
 \section{The Dataset}
+The dataset used in this paper was collected by researchers in University College Cork in and around the greater Cork City area. Data was collected using an Android network monitoring application, G-NetTrack Pro. Apple devices currently do not have any equivalent application for collecting cellular network related metrics. The dataset is a collection of 135 different traces approximately 15 minutes in length on average. Traces were collected by the UCC researchers under a number of different movement patterns. The traces are divided based on the following movement patterns: \\
+-\textbf{Static}: The trace was collected while the mobile devices location remained fixed. This is characteristic of a common use case for mobile devices such as watching video while seated at a desk. Such a use case presents the best case scenario for a cellular network as the connection will experience low variability in its stability. \\
+-\textbf{Car}: The trace was collected while travelling in Cork city and its surrounding suburbs by car. \\
+-\textbf{Train}: The trace was collected while travelling by train. These traces contain a mix of both 4G and 3G as availability for 4G networks was in urban areas only at the time these experiments took place. \\
+-\textbf{Bus}: Traces collected while using public transport around Cork City. \\
+-\textbf{Pedestrian}: Traces collected while walking around Cork City center using different routes. \\
+
+Traces were collected at a variety of times on both weekdays and weekends in order to provide adequate depiction of congestion patterns. \\
+
+The dataset includes of a number of physical layer metrics, as well has GPS metrics and the upload and download bitrate. The following description of the metrics collected was taken directly from the paper \cite{inproceedings} written by the researchers involved in the construction of this dataset. For a more in depth understanding of the dataset I recommend reading their paper. All credit goes to them for the following description of the metrics: \\
+
+•Timestamp: timestamp of sample \\
+•Longitude and Latitude: GPS coordinates of mobile device \\
+•Velocity: velocity in kph of mobile device \\ 
+•Operatorname: cellular operator name (anonymised) \\
+•CellId: Serving cell for mobile device \\
+•NetworkMode: mobile communication standard (2G/3G/4G)
+•RSRQ: value for RSRQ. RSRQ Represents a ratio between RSRP and Received Signal Strength Indicator (RSSI). Signal strength (signal quality) is measured across all resource elements (RE), including interference from all sources (dB). \\
+•RSRP: value for RSRP. RSRP Represents an average power over cell-specific reference symbols carried inside distinct RE. RSRP is used for measuring cell signal strength/coverage and therefore cell selection (dBm). \\
+•RSSI: value for RSSI. RSSI represents a received power (wide-band) including a serving cell and interference and noise from other sources. RSRQ, RSRP and RSSI are used for measuring cell strength/coverage and therefore cell selection(handover) (dBm)0\\
+•SNR: value for signal-to-noise ratio (dB). \\
+•CQI: value for CQI of a mobile device. CQI is a feedback provided by UE to eNodeB. It indicates data rate that could be transmitted over a channel (highest MCS with a BLER probability less than 10\%), as the function of SINR and UE’s receiver characteristics. Based on UE’s prediction of the channel, eNodeB selects an appropriate modulation scheme and coding rate. \\
+•DL\_bitrate: download rate measured at the device (application layer) (kbit/s) \\
+•UL\_bitrate: uplink rate measured at the device (application layer) (kbit/s) \\
+•State: state of the download process. It has two values, either I (idle, not downloading) or D (downloading) \\
+•NRxRSRQ \& NRxRSRP: RSRQ and RSRP values for the neighbouring cell. \\
+•Cell\_Longitude \& Cell\_Latitude: GPS coordinates of serving eNodeB. We use OpenCelliD4, the largest community open database providing GPS coordinates of cell towers. \\
+•Distance: distance between the serving cell and mobile device in metres.
+
+\section{Creat
