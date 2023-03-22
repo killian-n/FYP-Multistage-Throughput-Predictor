@@ -142,9 +142,9 @@ class DataPreProcessor:
             self.__test = test_df
             # MinMaxScaler so it doesnt matter if we scale before impute and we need to scale before impute of KNNImputer
             self.__train = self.apply_scaler(self.__train,train=True, fit_only=return_unscaled)
-            self.__train = self.impute(dataframe=self.__train, train=True)
+            self.__train = self.knn_impute(dataframe=self.__train, train=True)
             self.__test =self.apply_scaler(self.__test, fit_only=return_unscaled)
-            self.__test = self.impute(dataframe=self.__test)
+            self.__test = self.knn_impute(dataframe=self.__test)
             self.__train = self.create_averaged_features(dataframe=self.__train)
             self.__test = self.create_averaged_features(dataframe=self.__test)
             self.__x_train, self.__y_train = self.create_sequences(self.__train, self.__history_length, self.__horizon_length)
@@ -289,6 +289,20 @@ class DataPreProcessor:
             else:
                 dataframe[data_to_impute] = self.__imputer.transform(dataframe[data_to_impute])
         return dataframe
+    
+    def knn_impute(self, dataframe, train=False):
+        # NRxRSRP and NRxRSRQ require KNN-Imputation.
+        require_KNN = ["NRxRSRP", "NRxRSRQ", "RSRP", "RSRQ", "CQI", "SNR", "RSSI"]
+        require_KNN = [i for i in require_KNN if i in self.__numeric_features]
+        if require_KNN:
+            data_to_impute = dataframe.drop(columns=["Timestamp", "session"]).columns.tolist()
+            if train:
+                self.__imputer = KNNImputer(n_neighbors=5)
+                dataframe[data_to_impute] = self.__imputer.fit_transform(dataframe[data_to_impute])
+            else:
+                dataframe[data_to_impute] = self.__imputer.transform(dataframe[data_to_impute])
+        return dataframe
+        
 
     def apply_scaler(self, dataframe, train=False, fit_only=False):
         # isolate numeric features
