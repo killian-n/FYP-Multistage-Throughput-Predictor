@@ -12,10 +12,11 @@ pd.options.mode.chained_assignment = None
 
 
 class DataPreProcessor:
-    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univariate_scaler.sav", scale_data=True, history=10, horizon=5, create_train_test_split=False):
+    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univariate_scaler.sav", scale_data=True, history=10, horizon=5, create_train_test_split=False, name="univariate"):
 
         # Metadata
         metadata = ["Timestamp", "session", "movement_type"]
+        self._name = name
         self.__history_length = history
         self.__horizon_length = horizon
         self.__create_train_test_split = create_train_test_split
@@ -141,10 +142,13 @@ class DataPreProcessor:
             self.__train = train_df
             self.__test = test_df
             # MinMaxScaler so it doesnt matter if we scale before impute and we need to scale before impute of KNNImputer
-            self.__train = self.apply_scaler(self.__train,train=True, fit_only=return_unscaled)
+            self.__train = self.apply_scaler(self.__train,train=True)
             self.__train = self.knn_impute(dataframe=self.__train, train=True)
-            self.__test =self.apply_scaler(self.__test, fit_only=return_unscaled)
+            self.__test =self.apply_scaler(self.__test)
             self.__test = self.knn_impute(dataframe=self.__test)
+            if return_unscaled:
+                self.__train = self.inverse_scale(self.__train, is_x=True)
+                self.__test = self.inverse_scale(self.__test, is_x=True)
             self.__train = self.create_averaged_features(dataframe=self.__train)
             self.__test = self.create_averaged_features(dataframe=self.__test)
             self.__x_train, self.__y_train = self.create_sequences(self.__train, self.__history_length, self.__horizon_length)
@@ -165,6 +169,7 @@ class DataPreProcessor:
             self.separate_by_label(train=True)
             self.separate_by_label(train=False)
             self.save_scaler()
+            self.save_datasets()
 
     def train_test_split(self, train_prop=0.8):
         try:
@@ -304,7 +309,7 @@ class DataPreProcessor:
         return dataframe
         
 
-    def apply_scaler(self, dataframe, train=False, fit_only=False):
+    def apply_scaler(self, dataframe, train=False):
         # isolate numeric features
         data_to_scale = dataframe[self.__features_to_scale]
         if train:
@@ -313,12 +318,25 @@ class DataPreProcessor:
             self.__scaler_length = self.__scaler.n_features_in_
         else:
             scaled_data = self.__scaler.transform(data_to_scale)
-        if fit_only:
-            # don't return dataframe here until preprocessor is refactored to ensure that ordering of features is applied else where in returned dataframe
-            scaled_data = self.__scaler.inverse_transform(scaled_data)
         dataframe[self.__features_to_scale] = scaled_data
         return dataframe
 
+
+    def inverse_scale(self, dataframe, is_x=True):
+        # isolate numeric features
+        input_array = dataframe[self.__features_to_scale].to_numpy()
+        input_shape = input_array.shape
+        if is_x: 
+                input_array = self.__scaler.inverse_transform(input_array.reshape(-1, input_array.shape[-1])).reshape(input_shape)
+        else:
+            input_array = np.squeeze(input_array).flatten()
+            transform = np.zeros((len(input_array), self.__scaler.n_features_in_))
+            transform[:,0] = input_array
+            transform = self.__scaler.inverse_transform(transform)
+            input_array = transform[:,0].reshape(input_shape)
+        dataframe[self.__features_to_scale] = input_array
+        return dataframe
+    
     def create_averaged_features(self, dataframe, history_window=5):
         potential_features = ["SNR", "CQI", "RSSI", "NRxRSRP", "NRxRSRQ", "RSRQ", "RSRP"]
         features_to_average = [i for i in potential_features if i in self.__numeric_features and i in potential_features]
@@ -568,6 +586,45 @@ class DataPreProcessor:
 
     def set_test(self, test_df=pd.DataFrame()):
         self.__test = test_df
+
+    def save_datasets(self):
+        # Training Datasets
+        train_dir = "Datasets/Training/"
+        x, y = self.get_train_sequences()
+        np.save(train_dir+"{}_train_x".format(self._name), x)
+        np.save(train_dir+"{}_train_y".format(self._name), y)
+        x, y = self.get_low_train_sequences()
+        np.save(train_dir+"{}_low_train_x".format(self._name), x)
+        np.save(train_dir+"{}_low_train_y".format(self._name), y)
+        x, y = self.get_medium_train_sequences()
+        np.save(train_dir+"{}_medium_train_x".format(self._name), x)
+        np.save(train_dir+"{}_medium_train_y".format(self._name), y)
+        x, y = self.get_high_train_sequences()
+        np.save(train_dir+"{}_high_train_x".format(self._name), x)
+        np.save(train_dir+"{}_high_train_y".format(self._name), y)
+        x, y = self.get_label_predictor_train(sparse=True)
+        np.save(train_dir+"{}_classifier_train_x".format(self._name), x)
+        np.save(train_dir+"{}_classifier_train_y".format(self._name), y)
+        
+        # Testing Datasets
+        test_dir = "Datasets/Testing/"
+        x, y = self.get_test_sequences()
+        np.save(test_dir+"{}_test_x".format(self._name), x)
+        np.save(test_dir+"{}_test_y".format(self._name), y)
+        x, y = self.get_low_test_sequences()
+        np.save(test_dir+"{}_low_test_x".format(self._name), x)
+        np.save(test_dir+"{}_low_test_y".format(self._name), y)
+        x, y = self.get_medium_test_sequences()
+        np.save(test_dir+"{}_medium_test_x".format(self._name), x)
+        np.save(test_dir+"{}_medium_test_y".format(self._name), y)
+        x, y = self.get_high_test_sequences()
+        np.save(test_dir+"{}_high_test_x".format(self._name), x)
+        np.save(test_dir+"{}_high_test_y".format(self._name), y)
+        x, y = self.get_label_predictor_test(sparse=True)
+        np.save(test_dir+"{}_classifier_test_x".format(self._name), x)
+        np.save(test_dir+"{}_classifier_test_y".format(self._name), y)
+        
+
 
     def save_scaler(self, filename=None):
         if not filename:
