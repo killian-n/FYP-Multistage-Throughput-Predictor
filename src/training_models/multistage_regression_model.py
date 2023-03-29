@@ -112,10 +112,10 @@ class MultiStageLSTM(ModelFramework):
         self.set_input_shape()
         self.set_output_shape()
 
-    def train(self, epochs=70, batch_size=100, validation_split=0.2):
+    def train(self, epochs=100, batch_size=32, validation_split=0.2):
         timer = TimingCallback()
         self._tensorboard = TensorBoard(log_dir="src/logs/{}".format(self._model_name))
-        self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=True)
+        self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=False)
         self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size, validation_split=validation_split,
          verbose=1, callbacks=[self._checkpointer, self._tensorboard, timer])
         self._train_time = sum(timer.logs)
@@ -172,22 +172,6 @@ class MultiStageLSTM(ModelFramework):
         filename = self._model_name+"_scaler.sav"
         filepath = "src/saved.objects/"+filename
         pickle.dump(self._scaler, open(filepath, "wb"))
-
-
-    def crazy(self):
-        print("SCALED")
-        print("x train", self._train_x[0])
-        print("y train", self._train_y[0])
-        print("x test" , self._test_x[0])
-        print("y test", self._test_y[0])
-        print("\n\n---------\n", "REMOVING SCALING FROM Y")
-        y1 = self.inverse_scale_predictions(np.squeeze(self._train_y))
-        y2 = self.inverse_scale_predictions(np.squeeze(self._test_y))
-        print("train y", y1[0])
-        print("test y", y2[0])
-
-
-
 
 if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")

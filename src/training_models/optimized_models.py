@@ -1,6 +1,8 @@
 import configparser
 import sys
 import tensorflow as tf
+import numpy as np
+import pandas as pd
 config = configparser.ConfigParser()
 config.read('.env')
 module_path = config['global']['MODULE_PATH']
@@ -9,6 +11,7 @@ sys.path.append(module_path)
 from training_models.multistage_regression_model import MultiStageLSTM
 from training_models.classifier import ThroughputClassifier
 from training_models.baseline_regression_model import BaselineLSTM
+from data_transformation.preprocessor import DataPreProcessor
 
 class optimizedBaseline(BaselineLSTM):
     def build_model(self):
@@ -34,6 +37,7 @@ class optimizedBaseline(BaselineLSTM):
 
 class optimizedClassifierModel(ThroughputClassifier):
     def build_model(self, loss="categorical_crossentropy"):
+        print("This is the loss function", loss)
         self._model.add(tf.keras.layers.LSTM(96, input_shape=(self._train_x.shape[1], self._train_x.shape[2]), return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.2))
         self._model.add(tf.keras.layers.LSTM(64,return_sequences=True))
@@ -54,6 +58,7 @@ class optimizedLowRegressionModel(MultiStageLSTM):
         self._model.add(tf.keras.layers.LSTM(96, input_shape=(self._train_x.shape[1], self._train_x.shape[2]), return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.4))
         self._model.add(tf.keras.layers.LSTM(48,return_sequences=True))
+        self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.keras.layers.LSTM(48,return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(0.4))
         self._model.add(tf.keras.layers.LSTM(48,return_sequences=True))
@@ -94,6 +99,7 @@ class optimizedMediumRegressionModel(MultiStageLSTM):
         self._model.add(tf.keras.layers.LSTM(96, input_shape=(self._train_x.shape[1], self._train_x.shape[2]), return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.4))
         self._model.add(tf.keras.layers.LSTM(48,return_sequences=True))
+        self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.keras.layers.LSTM(48,return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(0.4))
         self._model.add(tf.keras.layers.LSTM(48,return_sequences=True))
@@ -107,7 +113,6 @@ class optimizedMediumRegressionModel(MultiStageLSTM):
         self._model.summary()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
         self.set_input_shape()
         self.set_output_shape()
-
 
 class optimizedHighRegressionModel(MultiStageLSTM):
     # def build_model(self):
@@ -134,6 +139,7 @@ class optimizedHighRegressionModel(MultiStageLSTM):
         self._model.add(tf.keras.layers.LSTM(96, input_shape=(self._train_x.shape[1], self._train_x.shape[2]), return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.4))
         self._model.add(tf.keras.layers.LSTM(48,return_sequences=True))
+        self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.keras.layers.LSTM(48,return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(0.4))
         self._model.add(tf.keras.layers.LSTM(48,return_sequences=True))
@@ -147,3 +153,18 @@ class optimizedHighRegressionModel(MultiStageLSTM):
         self._model.summary()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
         self.set_input_shape()
         self.set_output_shape()
+
+
+if __name__ == "__main__":
+    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
+    all_network_preprocessor = DataPreProcessor(raw_data, scaler_file_name="all_network_features.sav", include_features=["NRxRSRQ", "RSRQ","RSRP" ,"SNR", "CQI", "RSSI", "NRxRSRP"], name="all_network_unscaled")
+    example = optimizedClassifierModel(model_name="solo_all_network_classifier", preprocessor=all_network_preprocessor,sparse=True)
+    train_x = np.load("Datasets/Training/all_network_classifier_train_x.npy")
+    train_y = np.load("Datasets/Training/all_network_classifier_train_y.npy")
+    test_x = np.load("Datasets/Testing/all_network_classifier_test_x.npy")
+    test_y = np.load("Datasets/Testing/all_network_classifier_test_y.npy")
+    example.set_train(train_x, train_y)
+    example.set_test(test_x, test_y)
+    example.build_model(loss="sparse_categorical_crossentropy")
+    example.train()
+    example.test()

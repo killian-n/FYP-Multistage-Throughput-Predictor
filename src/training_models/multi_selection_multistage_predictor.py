@@ -38,6 +38,7 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
             self.__load_pretrained_metrics(pretrained_results, "low")
             self.__load_pretrained_metrics(pretrained_results, "medium")
             self.__load_pretrained_metrics(pretrained_results, "high")
+            self.__load_pretrained_metrics(pretrained_results, "classifier")
 
     def __call__(self, x_sequences):
         label = self._label_predictor(x_sequences).numpy()
@@ -55,11 +56,7 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         return result
 
     def build_and_train(self, epochs=100, batch_size=100, validation_split=0.2):
-        if self._loss == "sparse_categorical_crossentropy":
-            sparse=True
-        else:
-            sparse=False
-
+        sparse=False
         if not self._pretrained_name:
             super().build_and_train()
         else:
@@ -160,6 +157,15 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         self._high_tp_model.set_train(train_x=x_train, train_y=y_train)
         self._high_tp_model.set_test(test_x=x_test, test_y=y_test)
         self._high_tp_model.set_model(high_tp_model)
+
+
+        train_x, train_y = self._preprocessor.get_label_predictor_train()
+        test_x, test_y = self._preprocessor.get_label_predictor_test()
+        self._label_predictor = optimizedClassifierModel(model_name="{}_classifier".format(self._model_name))
+        classifier = tf.keras.models.load_model("src/saved.objects/{}_high.hdf5".format(self._pretrained_name))
+        self._label_predictor.set_train(train_x, train_y)
+        self._label_predictor.set_test(test_x, test_y)
+        self._label_predictor.set_model(classifier)
 
         self._output_shape = self._high_tp_model.get_output_shape()
     
