@@ -1,55 +1,93 @@
 import configparser
 import sys
+import numpy as np
 import pandas as pd
+import tensorflow as tf
 import csv
 config = configparser.ConfigParser()
 config.read('.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 
-
-from data_transformation.preprocessor import DataPreProcessor
-from training_models.single_selection_multistage_predictor import SingleSelectionMultistagePredictor
-from training_models.multi_selection_multistage_predictor import MultiSelectionMultistagePredictor
-from training_models.baseline_regression_model import BaselineLSTM
-from training_models.optimized_models import optimizedBaseline
+from trained_models.baseline import TrainedBaseline
+from trained_models.multistage_all import MultistageAll
+from trained_models.multistage_one import MultistageOne
 
 if __name__ == "__main__":
-    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
+    ###########
+    # DATASETS
+    ###########
+    # All
+    test_x = np.load("Datasets/Testing/act_all_network_test_x.npy")
+    test_y = np.load("Datasets/Testing/act_all_network_test_y.npy")
+    # Low
+    low_test_x = np.load("Datasets/Testing/act_all_network_low_test_x.npy")
+    low_test_y = np.load("Datasets/Testing/act_all_network_low_test_y.npy")
+    # Medium
+    medium_test_x = np.load("Datasets/Testing/act_all_network_medium_test_x.npy")
+    medium_test_y = np.load("Datasets/Testing/act_all_network_medium_test_y.npy")
+    # High
+    high_test_x = np.load("Datasets/Testing/act_all_network_high_test_x.npy")
+    high_test_y = np.load("Datasets/Testing/act_all_network_high_test_y.npy")
+    #Classifier
+    classifier_test_x = np.load("Datasets/Testing/act_all_network_classifier_test_x.npy")
+    classifier_test_y = np.load("Datasets/Testing/act_all_network_classifier_test_y.npy")
 
-    # Univariate
-    # preprocessor_univariate = DataPreProcessor(raw_data)
-    # multi_one_univariate = SingleSelectionMultistagePredictor(preprocessor=preprocessor_univariate, model_name="univariate_multiOne")
-    # univariate_baseline = BaselineLSTM(preprocessor=preprocessor_univariate, model_name="univariate_baseline")
-    # models_to_test = [multi_one_univariate, univariate_baseline]
+    ###########
+    # MODELS
+    ###########
+    baseline = TrainedBaseline("all_network_baseline")
+    multiOne = MultistageOne("standardized_multiOne")
+    multiAll = MultistageAll("standardized_multiAll")
 
-    # All network features
-    all_network_preprocessor = DataPreProcessor(raw_data, scaler_file_name="all_network_features.sav", include_features=["NRxRSRQ", "RSRQ","RSRP" ,"SNR", "CQI", "RSSI", "NRxRSRP"])
-    all_network_baseline = optimizedBaseline(preprocessor=all_network_preprocessor, model_name="st_new_all_network_baseline")
-    all_network_multiOne = SingleSelectionMultistagePredictor(preprocessor=all_network_preprocessor, model_name="st_new_all_network_multiOne")
-    models_to_test = [all_network_baseline, all_network_multiOne]
+    ###########
+    # Baseline
+    ###########
+    baseline.set_scaler("src/saved.objects/all_network_features.sav")
+    baseline.set_model(tf.keras.models.load_model("src/saved.objects/standard_4_all_network_baseline.hdf5"))
+    baseline.set_test(test_x, test_y)
+    baseline.set_low_test(low_test_x, low_test_y)
+    baseline.set_medium_test(medium_test_x, medium_test_y)
+    baseline.set_high_test(high_test_x, high_test_y)
 
-    # with open(config["metrics"]["RESULTS_PATH"], "a", newline="") as f:
-    #     writer = csv.writer(f)
-       #  writer.writerow(["model_name", "trainable_params", "non_trainable_params", "train_time", "predict_time", "mse", "mae", "average_bias", "mape", "model_size", "accuracy"])
-    for model in models_to_test:
-        model.pre_process()
-        try:
-            model.build_and_train()
-        except:
-            model.build_model()
-            model.train()
-        model.test()
+    ###########
+    # MultiOne
+    ###########
+    multiOne.set_classifier_scaler("src/saved.objects/all_network_features.sav")
+    multiOne.set_low_scaler("src/saved.objects/solo_low_all_network_scaler.sav")
+    multiOne.set_medium_scaler("src/saved.objects/solo_medium_all_network_scaler.sav")
+    multiOne.set_high_scaler("src/saved.objects/solo_high_all_network_scaler.sav")
+    multiOne.set_low_model("src/saved.objects/solo_low_all_network.hdf5")
+    multiOne.set_medium_model("src/saved.objects/solo_medium_all_network.hdf5")
+    multiOne.set_high_model("src/saved.objects/solo_high_all_network.hdf5")
+    multiOne.set_classifier("src/saved.objects/solo_all_network_classifier.hdf5")
+    multiOne.set_test(test_x, test_y)
+    multiOne.set_low_test(low_test_x, low_test_y)
+    multiOne.set_medium_test(medium_test_x, medium_test_y)
+    multiOne.set_high_test(high_test_x, high_test_y)
+    multiOne.set_classifier_test(classifier_test_x, classifier_test_y)
 
-    all_network_multiAll = MultiSelectionMultistagePredictor(preprocessor=all_network_preprocessor,
-                                                            pretrained_sequence_models="st_new_all_network_multiOne",
-                                                                model_name="st_new_all_network_multiAll")
-    all_network_multiAll.pre_process()
-    all_network_multiAll.build_and_train()
-    all_network_multiAll.test()
+    ###########
+    # MultiAll
+    # ###########
+    multiAll.set_classifier_scaler("src/saved.objects/all_network_features.sav")
+    multiAll.set_low_scaler("src/saved.objects/solo_low_all_network_scaler.sav")
+    multiAll.set_medium_scaler("src/saved.objects/solo_medium_all_network_scaler.sav")
+    multiAll.set_high_scaler("src/saved.objects/solo_high_all_network_scaler.sav")
+    multiAll.set_low_model("src/saved.objects/solo_low_all_network.hdf5")
+    multiAll.set_medium_model("src/saved.objects/solo_medium_all_network.hdf5")
+    multiAll.set_high_model("src/saved.objects/solo_high_all_network.hdf5")
+    multiAll.set_classifier("src/saved.objects/solo_all_network_classifier.hdf5")
+    multiAll.set_test(test_x, test_y)
+    multiAll.set_low_test(low_test_x, low_test_y)
+    multiAll.set_medium_test(medium_test_x, medium_test_y)
+    multiAll.set_high_test(high_test_x, high_test_y)
+    multiAll.set_classifier_test(classifier_test_x, classifier_test_y)
 
-    # univariate_multiAll = MultiSelectionMultistagePredictor(preprocessor=preprocessor_univariate,
-    #                                                          model_name="univariate_multiAll", pretrained_sequence_models="univariate_multiOne")
-    # univariate_multiAll.pre_process()
-    # univariate_multiAll.build_and_train()
-    # univariate_multiAll.test()
+
+    ###########
+    # Testing
+    ###########
+    baseline.test()
+    multiOne.test()
+    multiAll.test()
