@@ -38,20 +38,11 @@ class SingleSelectionMultistagePredictor:
         if self._preprocessor:
             self._is_scaled = self._preprocessor.is_scaled()
         self._results = []
-
-    def predict(self, x_sequences, no_of_batches=1000):
-        if no_of_batches > x_sequences.shape[0]:
-            no_of_batches = 1
-        predictions = np.zeros((x_sequences.shape[0], self._output_shape[1]))
-        index = 0
-        for arr in np.array_split(x_sequences, no_of_batches):
-            result = self.__call__(arr)
-            predictions[index:result.shape[0]+index, :] = result
-            index += result.shape[0]
-        return predictions
     
     def __call__(self, x_sequences):
-        label = self._label_predictor(x_sequences).numpy()
+        prob_tables = self._label_predictor(x_sequences).numpy()
+        label = np.zeros_like(prob_tables)
+        label[np.arange(len(prob_tables)), prob_tables.argmax(axis=1)] = 1
         
         low_labels = label[:,0].reshape((label.shape[0],1))
         med_labels = label[:,1].reshape((label.shape[0],1))
@@ -78,10 +69,6 @@ class SingleSelectionMultistagePredictor:
         return predictions
 
     def pre_process(self, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler_file_name="SSMSP_scaler.sav"):
-        if self._loss == "sparse_categorical_crossentropy":
-            sparse=True
-        else:
-            sparse=False
         if not self._preprocessor:
             self._preprocessor = DataPreProcessor(self._raw_data, include_features=include_features, predict=predict,
                 use_predict=use_predict, manual_mode=manual_mode, scaler_file_name=scaler_file_name)
@@ -89,11 +76,11 @@ class SingleSelectionMultistagePredictor:
         self._test_y = self.inverse_scale(self._test_y, is_x=False)
 
     def build_and_train(self, epochs=100, batch_size=32, validation_split=0.2):
-
         if self._loss == "sparse_categorical_crossentropy":
             sparse=True
         else:
             sparse=False
+        print("This is sparse", sparse)
         self._label_predictor = optimizedClassifierModel(model_name=self._model_name+"_classifier", sparse=sparse, preprocessor=self._preprocessor)
         self._label_predictor.pre_process()
         self._label_predictor.build_model(loss=self._loss)
@@ -101,14 +88,10 @@ class SingleSelectionMultistagePredictor:
         
         x_train, y_train = self._preprocessor.get_low_train_sequences()
         x_train = self.inverse_scale(x_train)
-        print("Sample of x_train",x_train[0])
         y_train = self.inverse_scale(y_train, is_x=False)
-        print("Sample of y_train",y_train[0])
         x_test, y_test = self._preprocessor.get_low_test_sequences()
         x_test = self.inverse_scale(x_test)
         y_test = self.inverse_scale(y_test, is_x=False)
-        print("Sample of x_test", x_test[0])
-        print("sample of y_test", y_test[0])
         
         self._low_tp_model = standardizedMultistageRegression(model_name="{}_low".format(self._model_name), preprocessor=self._preprocessor)
         self._low_tp_model.set_train(train_x=x_train, train_y=y_train)
@@ -262,9 +245,9 @@ if __name__ == "__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
     # preprocessor = DataPreProcessor(raw_data, scaler_file_name="debugging_scaler.sav", include_features=["NRxRSRQ", "RSRQ", "SNR", "CQI", "RSSI"])
     preprocessor = DataPreProcessor(raw_data, scaler_file_name="univariate_scaler.sav")
-    example = SingleSelectionMultistagePredictor(preprocessor=preprocessor, model_name="unop_univariate_multiOne")
+    example = SingleSelectionMultistagePredictor(preprocessor=preprocessor, model_name="throw_away")
     example.pre_process()
-    example.build_and_train(epochs=70)
+    example.build_and_train(epochs=1)
     example.test()
     # b = example.get_performance_metrics()
     # print(b)
