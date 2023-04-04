@@ -38,5 +38,8 @@ if __name__ == "__main__":
         
     if not horizon:
         horizon = 5
+    
+    if not include_features:
+        include_features = []
 
     preprocesor = DataPreProcessor(dataframe=raw_data, name=prefix, include_features=include_features, history=history, horizon=horizon)
