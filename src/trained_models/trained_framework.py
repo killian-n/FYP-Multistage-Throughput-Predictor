@@ -7,7 +7,7 @@ import configparser
 import csv
 import pickle
 config = configparser.ConfigParser()
-config.read('.env')
+config.read('project.env')
 
 warnings.filterwarnings('ignore', category=UserWarning, append=True)
 
@@ -68,7 +68,7 @@ class TrainedFramework(ABC):
         self._scaler = pickle.load(open(filepath, "rb"))
     
     def save_output(self,output,filename="DEFAULT_NAME_OUTPUTS"):
-        filename = "Datasets/Final_Outputs/"+filename
+        filename = config["global"]["PROJECT_PATH"]+"Datasets/Final_Outputs/"+filename
         np.save(filename, output)
 
     def get_model_size(self):
@@ -77,8 +77,11 @@ class TrainedFramework(ABC):
         return self._model_size
     
     def set_model_size(self, filepath=""):
+        saved_object_path = config["global"]["SAVED_OBJECTS_PATH"]
+        if saved_object_path[-1] not in ["\\", "/"]:
+            saved_object_path += "/"
         if not filepath:
-            filepath = 'src/saved.objects/{}.hdf5'.format(self._model_name)
+            filepath = '{}{}.hdf5'.format(saved_object_path, self._model_name)
         file_stats = os.stat(filepath)
         self._model_size = file_stats.st_size/(1024*1024)
     

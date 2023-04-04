@@ -6,8 +6,9 @@ from keras.utils.layer_utils import count_params
 import numpy as np
 from keras.callbacks import ModelCheckpoint, TensorBoard
 import pandas as pd
+import pickle
 config = configparser.ConfigParser()
-config.read('.env')
+config.read('project.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 from training_models.model_framework import ModelFramework
@@ -53,12 +54,41 @@ class BaselineLSTM(ModelFramework):
         self.set_output_shape()
 
     def train(self, epochs=100, batch_size=32, validation_split=0.2):
+        project_path = config["global"]["PROJECT_PATH"]
+        if project_path[-1] not in ["\\", "/"]:
+            project_path += "/"
         timer = TimingCallback()
-        self._tensorboard = TensorBoard(log_dir="src/logs/{}".format(self._model_name))
-        self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=False)
+        self._tensorboard = TensorBoard(log_dir="{}src/logs/{}".format(project_path, self._model_name))
+        self._checkpointer = ModelCheckpoint(filepath='{}src/saved.objects/{}.hdf5'.format(project_path, self._model_name), verbose = 1, save_best_only=False)
         self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size, validation_split=validation_split,
          verbose=1, callbacks=[self._checkpointer, self._tensorboard, timer])
         self._train_time = sum(timer.logs)
+
+    def __call__(self, inputs):
+        inputs = self.scale(inputs)
+        predictions = self._model(inputs)
+        predictions = self.__inverse_scale_predictions(predictions)
+        return predictions
+
+    def predict(self, inputs, test=False):
+        if not test:
+            inputs = self.scale(inputs)
+        predictions = self._model.predict(inputs)
+        print("In {}'s predict, before scaling the prediction is", predictions[0])
+        predictions = self.__inverse_scale_predictions(predictions)
+        return predictions
+
+    def set_train(self, train_x, train_y):
+        self._train_x = train_x
+        self._train_y = train_y
+        self._train_x = self.scale(self._train_x)
+        self._train_y = self.scale(self._train_y, is_x=False)
+
+    def set_test(self, test_x, test_y):
+        self._test_x = test_x
+        self._test_y = test_y
+        self._test_x = self.scale(self._test_x)
+        self._test_y = self.scale(self._test_y, is_x=False)
 
     def test(self):
         trainable_params = count_params(self._model.trainable_weights)
@@ -128,10 +158,18 @@ class BaselineLSTM(ModelFramework):
         epsilon = transform[0,0]
         return epsilon
     
-    def scale(self, input_array):
+    def scale(self, input_array, is_x=True):
         input_shape = input_array.shape
-        self._scaler = self._preprocessor.get_scaler()
-        input_array = self._scaler.transform(input_array.reshape(-1, input_array.shape[-1])).reshape(input_shape)
+        if not self._scaler:
+            self._scaler = self._preprocessor.get_scaler()
+        if is_x:
+            input_array = self._scaler.transform(input_array.reshape(-1, input_array.shape[-1])).reshape(input_shape)
+        else:
+            input_array = np.squeeze(input_array).flatten()
+            transform = np.zeros((len(input_array), self._scaler.n_features_in_))
+            transform[:,0] = input_array
+            transform = self._scaler.transform(transform)
+            input_array = transform[:,0].reshape(input_shape)
         return input_array
     
     def __inverse_scale_predictions(self, results):
@@ -155,6 +193,10 @@ class BaselineLSTM(ModelFramework):
     
     def get_performance_metrics(self):
         return self._results
+    
+    def set_scaler(self, filepath=""):
+        self._scaler = pickle.load(open(filepath, "rb"))
+
 
 if __name__=="__main__":
     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")

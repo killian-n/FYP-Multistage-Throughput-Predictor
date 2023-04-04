@@ -5,7 +5,7 @@ import tensorflow as tf
 import pickle
 import numpy as np
 config = configparser.ConfigParser()
-config.read('.env')
+config.read('project.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 

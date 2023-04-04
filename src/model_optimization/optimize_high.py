@@ -6,13 +6,13 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from keras_tuner import RandomSearch
 config = configparser.ConfigParser()
-config.read('.env')
+config.read('project.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 
 from data_transformation.preprocessor import DataPreProcessor
 
-raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
+raw_data = pd.read_csv(config["global"]["PROJECT_PATH"]+"Datasets/Raw/all_4G_data.csv", encoding="utf-8")
 global_preprocessor = DataPreProcessor(raw_data, scaler_file_name="tuning_scaler.sav", include_features=["NRxRSRQ", "RSRQ","RSRP" ,"SNR", "CQI", "RSSI", "NRxRSRP"])
 # global_preprocessor = DataPreProcessor(raw_data, scaler_file_name="tuning_scaler.sav")
 

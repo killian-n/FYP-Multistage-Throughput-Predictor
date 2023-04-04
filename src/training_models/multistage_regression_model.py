@@ -10,7 +10,7 @@ from time import time
 import pickle
 
 config = configparser.ConfigParser()
-config.read('.env')
+config.read('project.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 
@@ -38,7 +38,6 @@ class MultiStageLSTM(ModelFramework):
         if not test:
             inputs = self.scale(inputs)
         predictions = self._model.predict(inputs)
-        print("In {}'s predict, before scaling the prediction is", predictions[0])
         predictions = self.inverse_scale_predictions(predictions)
         return predictions
 
@@ -80,7 +79,7 @@ class MultiStageLSTM(ModelFramework):
         self._test_y = self.scale(self._test_y, is_x=False)
 
     def pre_process(self, include_features=[], predict=["DL_bitrate"],
-     use_predict=True, manual_mode=False, scaler=None, history=10, horizon=5, scale_data=False):
+     use_predict=True, manual_mode=False, scaler=None, history=10, horizon=5):
         if not self._preprocessor:
             scaler_file_name = self._model_name + ".sav"
             self._preprocessor = DataPreProcessor(self._raw_data, include_features=include_features, predict=predict,
@@ -113,8 +112,11 @@ class MultiStageLSTM(ModelFramework):
         self.set_output_shape()
 
     def train(self, epochs=100, batch_size=32, validation_split=0.2):
+        project_path = config["global"]["PROJECT_PATH"]
+        if project_path[-1] not in ["\\", "/"]:
+            project_path += "/"
         timer = TimingCallback()
-        self._tensorboard = TensorBoard(log_dir="src/logs/{}".format(self._model_name))
+        self._tensorboard = TensorBoard(log_dir="{}src/logs/{}".format(project_path,self._model_name))
         self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=False)
         self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size, validation_split=validation_split,
          verbose=1, callbacks=[self._checkpointer, self._tensorboard, timer])
@@ -169,8 +171,11 @@ class MultiStageLSTM(ModelFramework):
         return self._results
         
     def save_scaler(self):
+        project_path = config["global"]["PROJECT_PATH"]
+        if project_path[-1] not in ["\\", "/"]:
+            project_path += "/"
         filename = self._model_name+"_scaler.sav"
-        filepath = "src/saved.objects/"+filename
+        filepath = "{}src/saved.objects/".format(project_path)+filename
         pickle.dump(self._scaler, open(filepath, "wb"))
 
 if __name__ == "__main__":

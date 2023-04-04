@@ -8,7 +8,7 @@ from time import time
 import numpy as np
 import csv
 config = configparser.ConfigParser()
-config.read('.env')
+config.read('project.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 
@@ -60,9 +60,12 @@ class ThroughputClassifier(ModelFramework):
         self.set_output_shape()
 
     def train(self, epochs=100, batch_size=32, validation_split=0.2):
+        project_path = config["global"]["PROJECT_PATH"]
+        if project_path[-1] not in ["\\", "/"]:
+            project_path += "/"
         timer = TimingCallback()
-        self._tensorboard = TensorBoard(log_dir="src/logs/{}".format(self._model_name))
-        self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=True)
+        self._tensorboard = TensorBoard(log_dir="{}src/logs/{}".format(project_path, self._model_name))
+        self._checkpointer = ModelCheckpoint(filepath='{}src/saved.objects/{}.hdf5'.format(project_path, self._model_name), verbose = 1, save_best_only=True)
         self._class_weights = self._preprocessor.get_class_weights()
         self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size,
          validation_split=validation_split, verbose=1,class_weight=self._class_weights, callbacks=[self._checkpointer, self._tensorboard, timer])
@@ -112,7 +115,7 @@ class ThroughputClassifier(ModelFramework):
 
 if __name__ == "__main__":
     # {0: 1.7086360253729758, 1: 1.1781551618814905, 2: 0.6385886840432295}
-    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
+    raw_data = pd.read_csv("{}Datasets/Raw/all_4G_data.csv", encoding="utf-8".format(config["global"]["PROJECT_PATH"]))
     preprocessor_univariate = DataPreProcessor(raw_data, scaler_file_name="throw_away_univariate.sav")
     example = ThroughputClassifier(model_name="label_preditor_univariate_unweighted")
     example.pre_process(preprocessor=preprocessor_univariate)

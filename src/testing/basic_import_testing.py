@@ -6,7 +6,7 @@ import pickle
 import tensorflow as tf
 from matplotlib import pyplot as plt
 config = configparser.ConfigParser()
-config.read('.env')
+config.read('project.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 

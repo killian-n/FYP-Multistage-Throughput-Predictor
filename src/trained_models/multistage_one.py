@@ -7,7 +7,7 @@ import pickle
 from time import time
 import csv
 config = configparser.ConfigParser()
-config.read('.env')
+config.read('project.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 
@@ -125,7 +125,7 @@ class MultistageOne:
             writer.writerow(self._results)
 
     def save_output(self,output,filename="DEFAULT_NAME_OUTPUTS"):
-        filename = "Datasets/Final_Outputs/"+filename
+        filename = config["global"]["PROJECT_PATH"]+"Datasets/Final_Outputs/"+filename
         np.save(filename, output)
 
     def get_residuals(self, true, predicted):

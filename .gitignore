@@ -1,16 +1,17 @@
 Datasets/Raw/4G_LTE/
-.env
+project.env
 src/__pycache__/
 src/data_transformation/__pycache__/
 ToDo.txt
 Research_Papers/
 src/training_models/__pycache__/
+src/trained_models/__pycache__/
 src/logs/
 src/helper_functions/__pycache__/
 Own Papers/Brief Report on Findings
 Datasets/Model_Outputs
 model_tuning/
-src/old/
+src/deprecated/
 Own Papers/Undergraduate Paper/*.pdf
 Own Papers/Undergraduate Paper/*.aux
 Own Papers/Undergraduate Paper/*.synctex.gz

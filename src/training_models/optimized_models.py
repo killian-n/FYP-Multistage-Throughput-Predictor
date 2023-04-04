@@ -4,7 +4,7 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 config = configparser.ConfigParser()
-config.read('.env')
+config.read('project.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 
@@ -155,16 +155,16 @@ class optimizedHighRegressionModel(MultiStageLSTM):
         self.set_output_shape()
 
 
-if __name__ == "__main__":
-    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
-    all_network_preprocessor = DataPreProcessor(raw_data, scaler_file_name="all_network_features.sav", include_features=["NRxRSRQ", "RSRQ","RSRP" ,"SNR", "CQI", "RSSI", "NRxRSRP"], name="all_network_unscaled")
-    example = optimizedClassifierModel(model_name="solo_all_network_classifier", preprocessor=all_network_preprocessor,sparse=True)
-    train_x = np.load("Datasets/Training/all_network_classifier_train_x.npy")
-    train_y = np.load("Datasets/Training/all_network_classifier_train_y.npy")
-    test_x = np.load("Datasets/Testing/all_network_classifier_test_x.npy")
-    test_y = np.load("Datasets/Testing/all_network_classifier_test_y.npy")
-    example.set_train(train_x, train_y)
-    example.set_test(test_x, test_y)
-    example.build_model(loss="sparse_categorical_crossentropy")
-    example.train()
-    example.test()
+# if __name__ == "__main__":
+#     raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", encoding="utf-8")
+#     all_network_preprocessor = DataPreProcessor(raw_data, scaler_file_name="all_network_features.sav", include_features=["NRxRSRQ", "RSRQ","RSRP" ,"SNR", "CQI", "RSSI", "NRxRSRP"], name="all_network_unscaled")
+#     example = optimizedClassifierModel(model_name="solo_all_network_classifier", preprocessor=all_network_preprocessor,sparse=True)
+#     train_x = np.load("Datasets/Training/all_network_classifier_train_x.npy")
+#     train_y = np.load("Datasets/Training/all_network_classifier_train_y.npy")
+#     test_x = np.load("Datasets/Testing/all_network_classifier_test_x.npy")
+#     test_y = np.load("Datasets/Testing/all_network_classifier_test_y.npy")
+#     example.set_train(train_x, train_y)
+#     example.set_test(test_x, test_y)
+#     example.build_model(loss="sparse_categorical_crossentropy")
+#     example.train()
+#     example.test()

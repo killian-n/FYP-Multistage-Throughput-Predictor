@@ -8,7 +8,7 @@ from keras.utils.layer_utils import count_params
 import configparser
 import csv
 config = configparser.ConfigParser()
-config.read('.env')
+config.read('project.env')
 
 class ModelFramework(ABC):
     @abstractclassmethod
@@ -91,11 +91,17 @@ class ModelFramework(ABC):
         return self._preprocessor
     
     def save_output(self,output,filename="DEFAULT_NAME_OUTPUTS"):
-        filename = "Datasets/Final_Outputs/"+filename
+        project_path = config["global"]["PROJECT_PATH"]
+        if project_path[-1] not in ["\\", "/"]:
+            project_path += "/"
+        filename = "{}Datasets/Final_Outputs/".format(project_path)+filename
         np.save(filename, output)
 
     def get_model_size(self):
-        filepath = 'src/saved.objects/{}.hdf5'.format(self._model_name)
+        project_path = config["global"]["PROJECT_PATH"]
+        if project_path[-1] not in ["\\", "/"]:
+            project_path += "/"
+        filepath = '{}src/saved.objects/{}.hdf5'.format(project_path, self._model_name)
         file_stats = os.stat(filepath)
         model_size = file_stats.st_size/(1024*1024)
         return model_size

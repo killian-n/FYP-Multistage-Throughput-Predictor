@@ -9,10 +9,15 @@ import json
 from prettytable import PrettyTable
 import sys
 pd.options.mode.chained_assignment = None
+import configparser
+config = configparser.ConfigParser()
+config.read('project.env')
+module_path = config['global']['MODULE_PATH']
+sys.path.append(module_path)
 
 
 class DataPreProcessor:
-    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univariate_scaler.sav", scale_data=True, history=10, horizon=5, create_train_test_split=False, name="univariate"):
+    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univariate_scaler.sav", scale_data=False, history=10, horizon=5, create_train_test_split=False, name="univariate"):
 
         # Metadata
         metadata = ["Timestamp", "session", "movement_type"]
@@ -89,7 +94,7 @@ class DataPreProcessor:
 
         self.__scaler = scaler
         self.__scaler_length = 0
-        self.__scaler_file_name = scaler_file_name
+        self.__scaler_file_name = name+"_scaler.sav"
         self.__x_train= []
         self.__y_train = []
         self.__x_test = []
@@ -169,11 +174,12 @@ class DataPreProcessor:
             self.separate_by_label(train=True)
             self.separate_by_label(train=False)
             self.save_scaler()
+            self.save_imputer()
             self.save_datasets()
 
     def train_test_split(self, train_prop=0.8):
         try:
-            potential_splits = pd.read_csv("Datasets/train_test_analysis/train_test_splits_h{}h{}.csv".format(self.__history_length, self.__horizon_length), index_col=None)
+            potential_splits = pd.read_csv(config["global"]["PROJECT_PATH"]+"/Datasets/train_test_analysis/train_test_splits_h{}h{}.csv".format(self.__history_length, self.__horizon_length), index_col=None)
         except Exception as e:
             for i in range(self.__df["session"].max()+1):
                 print("Processing Session:", i)
@@ -182,8 +188,8 @@ class DataPreProcessor:
                 x, y = pre_processor.create_sequences(data, self.__history_length, self.__horizon_length)
                 y_labels = pre_processor.create_labels(y)
                 x_balanced, y_balanced = pre_processor.balance_labels(x, y_labels)
-            self.__generate_potential_splits("Datasets/train_test_analysis/sequence_balance_h{}h{}.csv".format(self.__history_length, self.__horizon_length),
-             outfile="Datasets/train_test_analysis/train_test_splits_h{}h{}.csv".format(self.__history_length, self.__horizon_length), train_prop=train_prop)
+            self.__generate_potential_splits(config["global"]["PROJECT_PATH"]+"/Datasets/train_test_analysis/sequence_balance_h{}h{}.csv".format(self.__history_length, self.__horizon_length),
+             outfile=config["global"]["PROJECT_PATH"]+"/Datasets/train_test_analysis/train_test_splits_h{}h{}.csv".format(self.__history_length, self.__horizon_length), train_prop=train_prop)
             self.train_test_split(train_prop=train_prop)
 
         potential_splits = potential_splits.sort_values(by="distribution_difference")
@@ -446,7 +452,7 @@ class DataPreProcessor:
         minimum = min(len(low_y), len(medium_y), len(high_y))
 
         if self.__create_train_test_split:
-            with open("Datasets/train_test_analysis/sequence_balance_h{}h{}.csv".format(self.__history_length, self.__horizon_length), "a", newline="") as f:
+            with open(config["global"]["PROJECT_PATH"]+"Datasets/train_test_analysis/sequence_balance_h{}h{}.csv".format(self.__history_length, self.__horizon_length), "a", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow([self.__df["session"].max(), len(low_x), len(medium_x), len(high_x)])
         
@@ -589,7 +595,9 @@ class DataPreProcessor:
 
     def save_datasets(self):
         # Training Datasets
-        train_dir = "Datasets/Training/"
+        train_dir = config["global"]["TRAINING_DATASETS_PATH"]
+        if train_dir[-1] not in ["\\", "/"]:
+            train_dir += "/"
         x, y = self.get_train_sequences()
         np.save(train_dir+"{}_train_x".format(self._name), x)
         np.save(train_dir+"{}_train_y".format(self._name), y)
@@ -607,7 +615,10 @@ class DataPreProcessor:
         np.save(train_dir+"{}_classifier_train_y".format(self._name), y)
         
         # Testing Datasets
-        test_dir = "Datasets/Testing/"
+        test_dir = config["global"]["TESTING_DATASETS_PATH"]
+        if test_dir[-1] not in ["\\", "/"]:
+            test_dir += "/"
+
         x, y = self.get_test_sequences()
         np.save(test_dir+"{}_test_x".format(self._name), x)
         np.save(test_dir+"{}_test_y".format(self._name), y)
@@ -620,7 +631,7 @@ class DataPreProcessor:
         x, y = self.get_high_test_sequences()
         np.save(test_dir+"{}_high_test_x".format(self._name), x)
         np.save(test_dir+"{}_high_test_y".format(self._name), y)
-        x, y = self.get_label_predictor_test(sparse=True)
+        x, y = self.get_label_predictor_test()
         np.save(test_dir+"{}_classifier_test_x".format(self._name), x)
         np.save(test_dir+"{}_classifier_test_y".format(self._name), y)
         
@@ -629,14 +640,26 @@ class DataPreProcessor:
     def save_scaler(self, filename=None):
         if not filename:
             filename = self.__scaler_file_name
-        filepath = "src/saved.objects/"+filename
+        saved_objects_path = config["global"]["SAVED_OBJECTS_PATH"]
+        if saved_objects_path[-1] not in ["\\", "/"]:
+            saved_objects_path += "/"
+        filepath = saved_objects_path+filename
         pickle.dump(self.__scaler, open(filepath, "wb"))
+
+    def save_imputer(self, filename=None):
+        if not filename:
+            filename = self._name+"_imputer.sav"
+        saved_objects_path = config["global"]["SAVED_OBJECTS_PATH"]
+        if saved_objects_path[-1] not in ["\\", "/"]:
+            saved_objects_path += "/"
+        filepath = saved_objects_path+filename
+        pickle.dump(self.__imputer, open(filepath, "wb"))
 
     def is_scaled(self):
         return self.__scale_data
 
 if __name__ == "__main__":
-    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None)
+    raw_data = pd.read_csv(config["global"]["PROJECT_PATH"]+"/Datasets/Raw/all_4G_data.csv", index_col=None)
     # pre_processor = DataPreProcessor(raw_data)
     # pre_processor = DataPreProcessor(raw_data, manual_mode=False, scaler_file_name="base_model_multivariate_scaler",
     #  include_features=["RSRQ", "State"], history=10, horizon=5)

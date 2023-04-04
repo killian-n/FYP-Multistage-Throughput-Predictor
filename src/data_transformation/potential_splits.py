@@ -5,7 +5,7 @@ import configparser
 import sys
 
 config = configparser.ConfigParser()
-config.read('.env')
+config.read('project.env')
 project_path = config['global']['PROJECT_PATH']
 sys.path.append(project_path)
 
@@ -71,7 +71,7 @@ def generate_potential_splits(infile="", outfile="", max_shuffle=10000, train_pe
 if __name__ == "__main__":
 
     # REQUIRES CSV WRITER LINES IN PREPROCESSOR BALANCE_LABELS TO BE COMMENTED IN
-    raw_data = pd.read_csv("Datasets/Raw/all_4G_data.csv", index_col=None)
+    raw_data = pd.read_csv(config["global"]["PROJECT_PATH"]+"Datasets/Raw/all_4G_data.csv", index_col=None)
     history_horizon_pairs = [[10,5], [15, 5], [20, 5], [25, 5], [15, 10], [20, 10], [25, 10]]
 
     for k in history_horizon_pairs:
@@ -83,4 +83,4 @@ if __name__ == "__main__":
             x, y = pre_processor.create_sequences(data, history, horizon)
             y_labels = pre_processor.create_labels(y)
             x_balanced, y_balanced = pre_processor.balance_labels(x, y_labels)
-        generate_potential_splits("Datasets/train_test_analysis/sequence_balance_h{}h{}.csv".format(history, horizon), outfile="Datasets/train_test_analysis/train_test_splits_h{}h{}.csv".format(history, horizon))
+        generate_potential_splits(config["global"]["PROJECT_PATH"]+"Datasets/train_test_analysis/sequence_balance_h{}h{}.csv".format(history, horizon), outfile="Datasets/train_test_analysis/train_test_splits_h{}h{}.csv".format(history, horizon))

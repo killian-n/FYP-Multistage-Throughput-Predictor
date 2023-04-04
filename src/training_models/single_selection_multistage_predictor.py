@@ -7,7 +7,7 @@ from time import time
 from keras.utils.layer_utils import count_params
 import csv
 config = configparser.ConfigParser()
-config.read('.env')
+config.read('project.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 
@@ -129,20 +129,23 @@ class SingleSelectionMultistagePredictor:
         self._output_shape = self._high_tp_model.get_output_shape()
         
     def load_models(self):
+        project_path = config["global"]["PROJECT_PATH"]
+        if project_path[-1] not in ["\\", "/"]:
+            project_path += "/"
         self._label_predictor = ThroughputClassifier(model_name=self._model_name+"_label_predictor")
-        label_predictor = tf.keras.models.load_model("src/saved.objects/{}_label_predictor.hdf5".format(self._model_name))
+        label_predictor = tf.keras.models.load_model("{}src/saved.objects/{}_label_predictor.hdf5".format(project_path, self._model_name))
         self._label_predictor.set_model(label_predictor)
 
         self._low_tp_model = MultiStageLSTM(model_name="{}_low".format(self._model_name))
-        low_tp_model = tf.keras.models.load_model("src/saved.objects/{}_low.hdf5".format(self._model_name))
+        low_tp_model = tf.keras.models.load_model("{}src/saved.objects/{}_low.hdf5".format(project_path, self._model_name))
         self._low_tp_model.set_model(low_tp_model)
 
         self._medium_tp_model = MultiStageLSTM(model_name="{}_medium".format(self._model_name))
-        medium_tp_model = tf.keras.models.load_model("src/saved.objects/{}_medium.hdf5".format(self._model_name))
+        medium_tp_model = tf.keras.models.load_model("{}src/saved.objects/{}_medium.hdf5".format(project_path, self._model_name))
         self._medium_tp_model.set_model(medium_tp_model)
 
         self._high_tp_model = MultiStageLSTM(model_name="{}_high".format(self._model_name))
-        high_tp_model = tf.keras.models.load_model("src/saved.objects/{}_high.hdf5".format(self._model_name))
+        high_tp_model = tf.keras.models.load_model("{}src/saved.objects/{}_high.hdf5".format(project_path, self._model_name))
         self._high_tp_model.set_model(high_tp_model)
 
         self._input_shape = self._label_predictor.get_input_shape()
@@ -238,7 +241,10 @@ class SingleSelectionMultistagePredictor:
             writer.writerow(self._results)
 
     def save_output(self,output,filename="DEFAULT_NAME_OUTPUTS"):
-        filename = "Datasets/Final_Outputs/"+filename
+        project_path = config["global"]["PROJECT_PATH"]
+        if project_path[-1] not in ["\\", "/"]:
+            project_path += "/"
+        filename = "{}Datasets/Final_Outputs/".format(project_path)+filename
         np.save(filename, output)
 
 if __name__ == "__main__":

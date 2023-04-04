@@ -5,7 +5,7 @@ import tensorflow as tf
 from time import time
 from keras.utils.layer_utils import count_params
 config = configparser.ConfigParser()
-config.read('.env')
+config.read('project.env')
 module_path = config['global']['MODULE_PATH']
 sys.path.append(module_path)
 
@@ -119,6 +119,9 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
 
 
     def __load_seq_models(self):
+        project_path = config["global"]["PROJECT_PATH"]
+        if project_path[-1] not in ["\\", "/"]:
+            project_path += "/"
         x_train, y_train = self._preprocessor.get_low_train_sequences()
         x_train = self.inverse_scale(x_train)
         y_train = self.inverse_scale(y_train, is_x=False)
@@ -127,7 +130,7 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         y_test = self.inverse_scale(y_test, is_x=False)
 
         self._low_tp_model = MultiStageLSTM(model_name="{}_low".format(self._model_name))
-        low_tp_model = tf.keras.models.load_model("src/saved.objects/{}_low.hdf5".format(self._pretrained_name))
+        low_tp_model = tf.keras.models.load_model("{}src/saved.objects/{}_low.hdf5".format(project_path, self._pretrained_name))
         self._low_tp_model.set_train(train_x=x_train, train_y=y_train)
         self._low_tp_model.set_test(test_x=x_test, test_y=y_test)
         self._low_tp_model.set_model(low_tp_model)
@@ -140,7 +143,7 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         y_test = self.inverse_scale(y_test, is_x=False)
 
         self._medium_tp_model = MultiStageLSTM(model_name="{}_medium".format(self._model_name))
-        medium_tp_model = tf.keras.models.load_model("src/saved.objects/{}_medium.hdf5".format(self._pretrained_name))
+        medium_tp_model = tf.keras.models.load_model("{}src/saved.objects/{}_medium.hdf5".format(project_path, self._pretrained_name))
         self._medium_tp_model.set_train(train_x=x_train, train_y=y_train)
         self._medium_tp_model.set_test(test_x=x_test, test_y=y_test)
         self._medium_tp_model.set_model(medium_tp_model)
@@ -153,7 +156,7 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         y_test = self.inverse_scale(y_test, is_x=False)
 
         self._high_tp_model = MultiStageLSTM(model_name="{}_high".format(self._model_name))
-        high_tp_model = tf.keras.models.load_model("src/saved.objects/{}_high.hdf5".format(self._pretrained_name))
+        high_tp_model = tf.keras.models.load_model("{}src/saved.objects/{}_high.hdf5".format(project_path, self._pretrained_name))
         self._high_tp_model.set_train(train_x=x_train, train_y=y_train)
         self._high_tp_model.set_test(test_x=x_test, test_y=y_test)
         self._high_tp_model.set_model(high_tp_model)
@@ -162,7 +165,7 @@ class MultiSelectionMultistagePredictor(SingleSelectionMultistagePredictor):
         train_x, train_y = self._preprocessor.get_label_predictor_train()
         test_x, test_y = self._preprocessor.get_label_predictor_test()
         self._label_predictor = optimizedClassifierModel(model_name="{}_classifier".format(self._model_name))
-        classifier = tf.keras.models.load_model("src/saved.objects/{}_high.hdf5".format(self._pretrained_name))
+        classifier = tf.keras.models.load_model("{}src/saved.objects/{}_high.hdf5".format(project_path,self._pretrained_name))
         self._label_predictor.set_train(train_x, train_y)
         self._label_predictor.set_test(test_x, test_y)
         self._label_predictor.set_model(classifier)
