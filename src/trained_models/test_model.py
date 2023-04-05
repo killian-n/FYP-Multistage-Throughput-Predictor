@@ -54,7 +54,7 @@ if __name__ == "__main__":
     if test_dir_path[-1] not in ["\\", "/"]:
         test_dir_path += "/"
 
-    saved_objects_dir_path = config["global"]["SAVED_OBJECTS_PATHS"]
+    saved_objects_dir_path = config["global"]["SAVED_OBJECTS_PATH"]
     if saved_objects_dir_path[-1] not in ["\\", "/"]:
         saved_objects_dir_path += "/"
     # All
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         else: 
             model = MultistageAll("{}_multiAll".format(model_prefix))
 
-        model.set_classifier_scaler("{}{}_classifier_scaler.sav".format(saved_objects_dir_path, data_prefix))
+        model.set_classifier_scaler("{}{}_scaler.sav".format(saved_objects_dir_path, data_prefix))
         model.set_low_scaler("{}{}_low_scaler.sav".format(saved_objects_dir_path, data_prefix))
         model.set_medium_scaler("{}{}_medium_scaler.sav".format(saved_objects_dir_path, data_prefix))
         model.set_high_scaler("{}{}_high_scaler.sav".format(saved_objects_dir_path, data_prefix))
