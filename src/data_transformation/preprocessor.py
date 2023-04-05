@@ -26,7 +26,7 @@ class DataPreProcessor:
         self.__horizon_length = horizon
         self.__create_train_test_split = create_train_test_split
         self.__scale_data = scale_data
-        
+        self.__imputer = None
         # Working dataframes
         self.__df = dataframe[include_features+predict+metadata]
         self.__train = None
@@ -176,6 +176,7 @@ class DataPreProcessor:
             self.save_scaler()
             self.save_imputer()
             self.save_datasets()
+            self.save_class_weights()
 
     def train_test_split(self, train_prop=0.8):
         try:
@@ -523,6 +524,9 @@ class DataPreProcessor:
             self.__x_test_high = high_x
             self.__y_test_high = high_y
 
+
+
+
     def get_test_sequences(self):
         return np.array(self.__x_test), np.array(self.__y_test)
 
@@ -586,6 +590,15 @@ class DataPreProcessor:
 
     def get_class_weights(self):
         return self.__class_weights
+    
+    def save_class_weights(self, filename=""):
+        if not filename:
+            filename = "{}_class_weights.sav".format(self._name)
+        saved_objects_path = config["global"]["SAVED_OBJECTS_PATH"]
+        if saved_objects_path[-1] not in ["\\", "/"]:
+            saved_objects_path += "/"
+        filepath = saved_objects_path+filename
+        pickle.dump(self._class_weights, open(filepath, "wb"))
 
     def set_train(self, train_df=pd.DataFrame()):
         self.__train = train_df
@@ -610,9 +623,10 @@ class DataPreProcessor:
         x, y = self.get_high_train_sequences()
         np.save(train_dir+"{}_high_train_x".format(self._name), x)
         np.save(train_dir+"{}_high_train_y".format(self._name), y)
-        x, y = self.get_label_predictor_train(sparse=True)
+        x, y = self.get_label_predictor_train(sparse=False)
         np.save(train_dir+"{}_classifier_train_x".format(self._name), x)
         np.save(train_dir+"{}_classifier_train_y".format(self._name), y)
+        
         
         # Testing Datasets
         test_dir = config["global"]["TESTING_DATASETS_PATH"]
@@ -634,8 +648,6 @@ class DataPreProcessor:
         x, y = self.get_label_predictor_test()
         np.save(test_dir+"{}_classifier_test_x".format(self._name), x)
         np.save(test_dir+"{}_classifier_test_y".format(self._name), y)
-        
-
 
     def save_scaler(self, filename=None):
         if not filename:
@@ -647,13 +659,14 @@ class DataPreProcessor:
         pickle.dump(self.__scaler, open(filepath, "wb"))
 
     def save_imputer(self, filename=None):
-        if not filename:
-            filename = self._name+"_imputer.sav"
-        saved_objects_path = config["global"]["SAVED_OBJECTS_PATH"]
-        if saved_objects_path[-1] not in ["\\", "/"]:
-            saved_objects_path += "/"
-        filepath = saved_objects_path+filename
-        pickle.dump(self.__imputer, open(filepath, "wb"))
+        if self.__imputer:
+            if not filename:
+                filename = self._name+"_imputer.sav"
+            saved_objects_path = config["global"]["SAVED_OBJECTS_PATH"]
+            if saved_objects_path[-1] not in ["\\", "/"]:
+                saved_objects_path += "/"
+            filepath = saved_objects_path+filename
+            pickle.dump(self.__imputer, open(filepath, "wb"))
 
     def is_scaled(self):
         return self.__scale_data
