@@ -63,6 +63,7 @@ if __name__ == "__main__":
     
     else:
         model = optimizedClassifierModel(model_name=model_name)
+        model.set_class_weights(filename="{}_class_weights.sav")
 
 
     # Getting train and test Datasets

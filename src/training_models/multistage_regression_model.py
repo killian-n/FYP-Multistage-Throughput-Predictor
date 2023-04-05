@@ -117,7 +117,7 @@ class MultiStageLSTM(ModelFramework):
             project_path += "/"
         timer = TimingCallback()
         self._tensorboard = TensorBoard(log_dir="{}src/logs/{}".format(project_path,self._model_name))
-        self._checkpointer = ModelCheckpoint(filepath='src/saved.objects/{}.hdf5'.format(self._model_name), verbose = 1, save_best_only=False)
+        self._checkpointer = ModelCheckpoint(filepath='{}src/saved.objects/{}.hdf5'.format(project_path,self._model_name), verbose = 1, save_best_only=False)
         self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size, validation_split=validation_split,
          verbose=1, callbacks=[self._checkpointer, self._tensorboard, timer])
         self._train_time = sum(timer.logs)

@@ -68,7 +68,10 @@ class TrainedFramework(ABC):
         self._scaler = pickle.load(open(filepath, "rb"))
     
     def save_output(self,output,filename="DEFAULT_NAME_OUTPUTS"):
-        filename = config["global"]["PROJECT_PATH"]+"Datasets/Final_Outputs/"+filename
+        project_path = config["global"]["PROJECT_PATH"]
+        if project_path[-1] not in ["\\", "/"]:
+            project_path += "/"
+        filename = project_path+"Datasets/Final_Outputs/"+filename
         np.save(filename, output)
 
     def get_model_size(self):
