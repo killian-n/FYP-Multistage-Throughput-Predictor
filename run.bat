@@ -1,9 +1,9 @@
 @echo off
 set "SCRIPT_DIR=%~dp0"
 REM REPLACE WITH YOUR PYTHON ENVIRONMENT
-set python_environment="C:/Users/Killian/miniconda3/Scripts/activate"
+set python_environment="C:/Users/knola/miniconda3/Scripts/activate"
 set "PYTHONPATH=%PYTHONPATH%;%SCRIPT_DIR%"
-for /r %SCRIPT_DIR%"\src" %%i in (.) do @copy %SCRIPT_DIR%"project.env" "%%i"
+for /r %SCRIPT_DIR%"\src" %%i in (.) do @copy %SCRIPT_DIR%"project.env" "%%i" > nul
 
 call %python_environment% tf
 set run_prefix="presentation"
@@ -27,6 +27,8 @@ python.exe test_model.py --prefix %run_prefix% --model "baseline"
 python.exe test_model.py --prefix %run_prefix% --model "multiOne"
 python.exe test_model.py --prefix %run_prefix% --model "multiAll"
 
+
+REM THIS TRAINS AND TEST UNIVARIATE
 @echo off
 cd ..\data_transformation
 @echo on
