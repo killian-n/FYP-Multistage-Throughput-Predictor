@@ -67,7 +67,8 @@ class ThroughputClassifier(ModelFramework):
         timer = TimingCallback()
         self._tensorboard = TensorBoard(log_dir="{}src/logs/{}".format(project_path, self._model_name))
         self._checkpointer = ModelCheckpoint(filepath='{}src/saved.objects/{}.hdf5'.format(project_path, self._model_name), verbose = 1, save_best_only=True)
-        self._class_weights = self._preprocessor.get_class_weights()
+        if self._preprocessor:
+            self._class_weights = self._preprocessor.get_class_weights()
         self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size,
          validation_split=validation_split, verbose=1,class_weight=self._class_weights, callbacks=[self._checkpointer, self._tensorboard, timer])
         self._train_time = sum(timer.logs)
@@ -90,15 +91,21 @@ class ThroughputClassifier(ModelFramework):
         self.save_output(predicted_y, self._model_name+"_predicted_y")
         self.save_output(self._test_y, self._model_name+"_true_y")
 
+    def scale(self, input_array):
+        input_shape = input_array.shape
+        if not self._scaler:
+            self._scaler = self._preprocessor.get_scaler()
+        input_array = self._scaler.transform(input_array.reshape(-1, input_array.shape[-1])).reshape(input_shape)
+        return input_array
 
     def set_train(self, train_x, train_y):
-        self._train_x = train_x
+        self._train_x = self.scale(train_x)
         self._train_y = train_y        
         if self._sparse:
             self._train_y = self._train_y.T
 
     def set_test(self, test_x, test_y):
-        self._test_x = test_x
+        self._test_x = self.scale(test_x)
         self._test_y = test_y
         if self._sparse:
             self._test_y = self._test_y.T
@@ -119,7 +126,7 @@ class ThroughputClassifier(ModelFramework):
         if saved_objects_path[-1] not in ["\\", "/"]:
             saved_objects_path += "/"
         filepath = saved_objects_path+filename
-        pickle.load(open(filepath, "rb"))
+        self._class_weights = pickle.load(open(filepath, "rb"))
 
 
 

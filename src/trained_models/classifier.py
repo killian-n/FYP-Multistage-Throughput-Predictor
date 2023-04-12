@@ -39,7 +39,7 @@ class TrainedClassifier(TrainedFramework):
         self.save_output(predicted_y, self._model_name+"_predicted_y")
         self.save_output(self._test_y, self._model_name+"_true_y")
 
-    def set_test(self, test_x, test_y, loss="sparse_categorical_crossentropy"):
+    def set_test(self, test_x, test_y, loss="categorical_crossentropy"):
         self._test_x = test_x
         self._test_y = test_y
         if loss == "sparse_categorical_crossentropy":

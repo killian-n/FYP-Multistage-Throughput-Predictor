@@ -89,11 +89,12 @@ if __name__ == "__main__":
         model.set_low_scaler("{}{}_low_scaler.sav".format(saved_objects_dir_path, data_prefix))
         model.set_medium_scaler("{}{}_medium_scaler.sav".format(saved_objects_dir_path, data_prefix))
         model.set_high_scaler("{}{}_high_scaler.sav".format(saved_objects_dir_path, data_prefix))
-        model.set_low_model("{}{}_low.hdf5".format(saved_objects_dir_path, model_prefix))
-        model.set_medium_model("{}{}_medium.hdf5".format(saved_objects_dir_path, model_prefix))
-        model.set_high_model("{}{}_high.hdf5".format(saved_objects_dir_path, model_prefix))
-        model.set_classifier("{}{}_classifier.hdf5".format(saved_objects_dir_path, model_prefix))
+        model.set_low_model("{}{}_low.hdf5".format(saved_objects_dir_path, data_prefix))
+        model.set_medium_model("{}{}_medium.hdf5".format(saved_objects_dir_path, data_prefix))
+        model.set_high_model("{}{}_high.hdf5".format(saved_objects_dir_path, data_prefix))
+        model.set_classifier("{}{}_classifier.hdf5".format(saved_objects_dir_path, data_prefix))
         model.set_classifier_test(classifier_test_x, classifier_test_y)
+        
 
     model.set_test(test_x, test_y)
     model.set_low_test(low_test_x, low_test_y)
