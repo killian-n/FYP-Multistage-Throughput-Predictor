@@ -598,7 +598,7 @@ class DataPreProcessor:
         if saved_objects_path[-1] not in ["\\", "/"]:
             saved_objects_path += "/"
         filepath = saved_objects_path+filename
-        pickle.dump(self._class_weights, open(filepath, "wb"))
+        pickle.dump(self.__class_weights, open(filepath, "wb"))
 
     def set_train(self, train_df=pd.DataFrame()):
         self.__train = train_df
