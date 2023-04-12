@@ -3,10 +3,9 @@ from abc import ABC, abstractclassmethod
 import os
 import numpy as np
 from keras import backend
-from time import time
-from keras.utils.layer_utils import count_params
 import configparser
 import csv
+import pickle
 config = configparser.ConfigParser()
 config.read('project.env')
 
@@ -126,3 +125,6 @@ class ModelFramework(ABC):
         with open(csv_file, "a", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(self._results)
+
+    def set_scaler(self, filepath=""):
+        self._scaler = pickle.load(open(filepath, "rb"))
