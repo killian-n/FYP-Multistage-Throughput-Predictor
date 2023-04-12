@@ -62,8 +62,12 @@ if __name__ == "__main__":
         model = optimizedHighRegressionModel(model_name=model_name)
     
     else:
+        saved_objects_path = config["global"]["SAVED_OBJECTS_PATH"]
+        if saved_objects_path[-1] not in ["\\", "/"]:
+            saved_objects_path += "/"
         model = optimizedClassifierModel(model_name=model_name)
-        model.set_class_weights(filename="{}_class_weights.sav")
+        model.set_class_weights(filename="{}_class_weights.sav".format(data_prefix))
+        model.set_scaler(saved_objects_path+"{}_scaler.sav".format(data_prefix))
 
 
     # Getting train and test Datasets
