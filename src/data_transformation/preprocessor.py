@@ -318,9 +318,13 @@ class DataPreProcessor:
 
     def apply_scaler(self, dataframe, train=False):
         # isolate numeric features
+        if self.__use_predict:
+            self.__features_to_scale = self.__predict+self.__numeric_features[:-(len(self.__predict))]+self.__geo_features+self.__categorical_features
+        else:
+            self.__features_to_scale = self.__numeric_features+self.__geo_features+self.__categorical_features
         data_to_scale = dataframe[self.__features_to_scale]
         if train:
-            self.__scaler = MinMaxScaler((-1, 1))
+            self.__scaler = MinMaxScaler((0, 1))
             scaled_data = self.__scaler.fit_transform(data_to_scale)
             self.__scaler_length = self.__scaler.n_features_in_
         else:
@@ -672,33 +676,23 @@ class DataPreProcessor:
         return self.__scale_data
 
 if __name__ == "__main__":
-    raw_data = pd.read_csv(config["global"]["PROJECT_PATH"]+"/Datasets/Raw/all_4G_data.csv", index_col=None)
-    # pre_processor = DataPreProcessor(raw_data)
-    # pre_processor = DataPreProcessor(raw_data, manual_mode=False, scaler_file_name="base_model_multivariate_scaler",
-    #  include_features=["RSRQ", "State"], history=10, horizon=5)
+    # raw_data = pd.read_csv(config["global"]["PROJECT_PATH"]+"/Datasets/Raw/all_4G_data.csv", index_col=None)
+    # preprocessor = DataPreProcessor(raw_data, include_features=["RSRP", "RSRQ", "SNR", "CQI", "RSSI", "UL_bitrate",
+    #                                                              "State","NetworkMode", "Longitude", "Latitude", "NRxRSRQ", "NRxRSRP"], manual_mode=True)
+    # preprocessor.one_hot_encode()
+    # data = preprocessor.get_df()
+    # data = preprocessor.apply_scaler(data, train=True)
+    # data = preprocessor.knn_impute(data, train=True)
+    # data = preprocessor.inverse_scale(data, is_x=True)
+    # data = preprocessor.create_averaged_features(dataframe=data)
+    # data.to_csv(config["global"]["PROJECT_PATH"]+"/Datasets/processed_network_data.csv", index=False, encoding="utf-8")
 
-    # x_train, train_y = pre_processor.get_train_sequences()
-    # print(x_train)
+    data = np.random.sample((100, 5))
+    data = np.round(data, 0)
+    scaler = MinMaxScaler((0,1))
+    scaled = scaler.fit_transform(data)
 
-    preprocessor_multi3 = DataPreProcessor(raw_data, include_features=["RSRQ", "Longitude", "Latitude", "State", "NRxRSRQ"], scaler_file_name="DELETE.sav", manual_mode=True)
-    preprocessor_multi3.preprocess(return_unscaled=True)
-    x, y = preprocessor_multi3.get_train_sequences()
-    k, z = preprocessor_multi3.get_test_sequences()
-    print(x[100],"\n", y[100], "\n===========")
-    print(k[100],"\n", z[100], "\n===========")
-
-    t,s = preprocessor_multi3.get_low_test_sequences()
-    p, e = preprocessor_multi3.get_low_train_sequences()
-    print(p[100],"\n", e[100], "\n===========")
-    print(t[100],"\n", s[100], "\n===========")
-
-    # history = 20
-    # horizon = 10
-    # for i in range(raw_data["session"].max()+1):
-    #     print("Processing Session:", i)
-    #     pre_processor = DataPreProcessor(raw_data[raw_data["session"]==i], manual_mode=True)
-    #     data = pre_processor.impute(pre_processor.get_df())
-    #     x, y = pre_processor.create_sequences(data, history, horizon)
-    #     y_labels = pre_processor.create_labels(y)
-    #     x_balanced, y_balanced = pre_processor.balance_labels(x, y_labels)
-
+    print("before scaling")
+    print(data[0])
+    print("AFter scaling")
+    print(scaled[0])
