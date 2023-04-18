@@ -3,7 +3,8 @@ import pandas as pd
 import pickle
 import csv
 from sklearn.impute import KNNImputer
-from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.utils import resample
 import random
 import json
 from prettytable import PrettyTable
@@ -17,8 +18,9 @@ sys.path.append(module_path)
 
 
 class DataPreProcessor:
-    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, scaler_file_name="univariate_scaler.sav", scale_data=False, history=10, horizon=5, create_train_test_split=False, name="univariate"):
-
+    def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True,
+                  manual_mode=False, scaler=None, scaler_file_name="univariate_scaler.sav",
+                    scale_data=False, history=10, horizon=5, create_train_test_split=False, name="univariate", balance=False):
         # Metadata
         metadata = ["Timestamp", "session", "movement_type"]
         self._name = name
@@ -27,6 +29,7 @@ class DataPreProcessor:
         self.__create_train_test_split = create_train_test_split
         self.__scale_data = scale_data
         self.__imputer = None
+        self._balance = balance
         # Working dataframes
         self.__df = dataframe[include_features+predict+metadata]
         self.__train = None
@@ -63,7 +66,7 @@ class DataPreProcessor:
             pass
         # Potential memory issue with float64
         self.__df[self.__numeric_features+self.__geo_features] \
-            = self.__df[self.__numeric_features+self.__geo_features].astype("float64")
+            = self.__df[self.__numeric_features+self.__geo_features].astype("float32")
         if self.__use_predict:
             numeric_features = self.__numeric_features[:-(len(self.__predict))]
         new_order = self.__predict + numeric_features + self.__geo_features + self.__categorical_features + metadata
@@ -163,14 +166,9 @@ class DataPreProcessor:
             self.__y_test_labels = self.create_labels(self.__y_test, sparse=False, scaled=scaled)
             self.__y_train_labels_sparse = self.create_labels(self.__y_train, sparse=True, scaled=scaled)
             self.__y_test_labels_sparse = self.create_labels(self.__y_test, sparse=True, scaled=scaled)
-
-            # NO LONGER BALANCING
-            # self.__x_train_balanced, self.__y_train_balanced = self.balance_labels(self.__x_train, self.__y_train_labels, ignore_min_size=True, sparse=False)
-            # self.__x_test_balanced, self.__y_test_balanced = self.balance_labels(self.__x_test, self.__y_test_labels, train=False, ignore_min_size=True, sparse=False)
-
-            # self.__x_train_balanced, self.__y_train_balanced_sparse = self.balance_labels(self.__x_train, self.__y_train_labels_sparse, ignore_min_size=True, sparse=True)
-            # self.__x_test_balanced, self.__y_test_balanced_sparse = self.balance_labels(self.__x_test, self.__y_test_labels_sparse, train=False, ignore_min_size=True, sparse=True)
-
+            if self._balance:
+                self.__x_train_balanced, self.__y_train_labels_balanced = self.balance_labels(self.__x_train, self.__y_train_labels)
+                self.__x_train_balanced, self.__y_train_labels_sparse_balanced = self.balance_labels(self.__x_train, self.__y_train_labels_sparse, sparse=True)
             self.separate_by_label(train=True)
             self.separate_by_label(train=False)
             self.save_scaler()
@@ -423,7 +421,7 @@ class DataPreProcessor:
         return y_labels
 
     # KEEP FOR CREATE_TRAIN_TEST
-    def balance_labels(self, x_sequences, labels, sparse=False):
+    def balance_labels(self, x_sequences, labels, sparse=False, upsample=False):
         # PROBABLY DONT NEED TO BALANCE TEST SET
         low_x = []
         medium_x = []
@@ -454,20 +452,85 @@ class DataPreProcessor:
                 else:
                     high_x.append(sequence)
                     high_y.append(target)
-        minimum = min(len(low_y), len(medium_y), len(high_y))
 
         if self.__create_train_test_split:
             with open(config["global"]["PROJECT_PATH"]+"Datasets/train_test_analysis/sequence_balance_h{}h{}.csv".format(self.__history_length, self.__horizon_length), "a", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow([self.__df["session"].max(), len(low_x), len(medium_x), len(high_x)])
         
-        # low_x = low_x[:minimum]
-        # low_y = low_y[:minimum]
-        # medium_x = medium_x[:minimum]
-        # medium_y = medium_y[:minimum]
-        # high_x = high_x[:minimum]
-        # high_y = high_y[:minimum]
-        # print("Low", len(low_x), "Med", len(medium_x), "High", len(high_x))
+        # Upsampling
+        if upsample:
+            # High
+            len_high = len(high_y)
+            len_medium = len(medium_y)
+            len_low = len(low_y)
+
+            if len_high >= len_medium and len_high >= len_low:
+                sample_low_indices = resample(list(range(0,len_low)),
+                replace=True,
+                n_samples=len_high-len_low,
+                random_state=13)
+                
+                sample_medium_indices = resample(list(range(0,len_medium)),
+                replace=True,
+                n_samples=len_high-len_medium,
+                random_state=13)
+                
+                for i in sample_low_indices:
+                    low_x.append(low_x[i])
+                    low_y.append(low_y[i])
+                for i in sample_medium_indices:
+                    medium_x.append(medium_x[i])
+                    medium_y.append(medium_y[i])
+            # Low
+            elif len_low >= len_medium and len_low >= len_high:
+
+                sample_high_indices = resample(list(range(0,len_high)),
+                replace=True,
+                n_samples=len_low-len_high,
+                random_state=13)
+                
+                sample_medium_indices = resample(list(range(0,len_medium)),
+                replace=True,
+                n_samples=len_low-len_medium,
+                random_state=13)
+                
+                for i in sample_high_indices:
+                    high_x.append(high_x[i])
+                    high_y.append(high_y[i])
+                for i in sample_medium_indices:
+                    medium_x.append(medium_x[i])
+                    medium_y.append(medium_y[i])
+            # Medium
+            else:
+                sample_high_indices = resample(list(range(0,len_high)),
+                replace=True,
+                n_samples=len_medium-len_high,
+                random_state=13)
+                
+                sample_low_indices = resample(list(range(0,len_low)),
+                replace=True,
+                n_samples=len_medium-len_low,
+                random_state=13)
+                
+                for i in sample_high_indices:
+                    high_x.append(high_x[i])
+                    high_y.append(high_y[i])
+                for i in sample_low_indices:
+                    low_x.append(low_x[i])
+                    low_y.append(low_y[i])
+
+        if not upsample:
+            pass
+            #minimum = min(len(low_y), len(medium_y), len(high_y))
+            # low_x = low_x[:minimum]
+            # low_y = low_y[:minimum]
+            # medium_x = medium_x[:minimum]
+            # medium_y = medium_y[:minimum]
+            # high_x = high_x[:minimum]
+            # high_y = high_y[:minimum]
+            # print("Low", len(low_x), "Med", len(medium_x), "High", len(high_x))
+
         x = low_x + medium_x + high_x
         y = low_y + medium_y + high_y
         return x, y
@@ -539,7 +602,11 @@ class DataPreProcessor:
 
     def get_label_predictor_train(self, sparse=False):
         if sparse:
+            if self._balance:
+                return np.array(self.__x_train_balanced), np.array(self.__y_train_labels_sparse_balanced, ndmin=2)
             return np.array(self.__x_train), np.array(self.__y_train_labels_sparse, ndmin=2)
+        if self._balance:
+            np.array(self.__x_train_balanced), np.array(self.__y_train_labels_balanced, ndmin=2)
         return np.array(self.__x_train), np.array(self.__y_train_labels, ndmin=2)
 
     def get_label_predictor_test(self, sparse=False):
@@ -692,7 +759,10 @@ if __name__ == "__main__":
     scaler = MinMaxScaler((0,1))
     scaled = scaler.fit_transform(data)
 
-    print("before scaling")
-    print(data[0])
-    print("AFter scaling")
-    print(scaled[0])
+    #print(data[0:5])
+    #print("before scaling")
+    #print(data[[0,3, 5]])
+
+
+    #print("AFter scaling")
+    #print(scaled[0])
