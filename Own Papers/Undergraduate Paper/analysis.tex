@@ -34,6 +34,7 @@ Traces were collected at a variety of times on both weekdays and weekends in ord
 •Cell\_Longitude \& Cell\_Latitude: GPS coordinates of serving eNodeB. We use OpenCelliD4, the largest community open database providing GPS coordinates of cell towers. \\
 •Distance: distance between the serving cell and mobile device in metres.
 
+\newpage
 \section{Considerations of the Dataset}
 
 As the dataset is a collection of separate traces (experiments), this must be taken into account when constructing train and test splits. The entire dataset cannot be viewed a a series of disconnected time series as traces start from different physical locations, run for different lengths of time and use the same workload as a starting point for measuring network data. As such special care must be taken in order to ensure proper construction of train-test sequences.
@@ -46,5 +47,25 @@ Some features collected are not reported directly by the G-NetTrack Pro such as 
 
 While this dataset is robust in its construction and depiction of typical mobile communication system scenarios, it is not universal. Mobile network infrastructure implementations vary heavily by location. This dataset contains a mix of 2G/3G/4G networks. Older wireless communication technologies have different network environment distributions. As technology continues to progress the model will suffer from distribution shift.
 
+\section{Choice of History \& Horizon Windows}
+A typical input for an Lstm model used in forecasting takes the shape of: $[ n, p, q ]$ where n is the number of examples, p is the length of the history window and q is the number of features. The output will then be in the form of $[n, k, s ]$ where k is the length of the horizon window and s is the number of target variables the model predicts, typically s=1. Fig \ref{fig:example_of_ts} illustrates the construction of a single example in the univariate case.
+
+\begin{figure}[h]
+\includegraphics[scale=0.15]{History Horizon.png}
+\caption{Graph showing how a history and horizon window can be constructed for a feature in time series data}
+\label{fig:example_of_ts}
+\end{figure}
+
+In general a larger history window leads to a better prediction \cite{}. There are many methods for identifying the optimal length of the horizon and history windows. The application the model is being deployed in will also place restrictions on 
+
+
 \section{Identifying Bounds for Mutlistage Models}
-Two multistage approaches for modelling throughput prediction were considered in this paper. Each of the two architectures however share the same base models. The first model is a simple classifier that aims to predict a future throughput as one of 3 distinct situations, low throughput, medium throughput or high throughput. The choice to divide the problem based on the value of the download throughput comes from the fact that traces typically reported throughput above certain bounds (5Mbps, 1Mbps etc) far more often than below them. This imbalance leads to a single stage model frequently overestimating in low/medium throughput situations. Overestimating in these low or medium throughput scenarios leads to a noticeable decrease in the preceived quality of delivery in applications such as video streaming.
+Two multistage approaches for modelling throughput prediction were considered in this paper. Each of the two architectures however share the same base models. The first model is a simple classifier that aims to predict a future throughput as one of 3 distinct situations, low throughput, medium throughput or high throughput. The choice to divide the problem based on the value of the download throughput comes from the fact that traces typically reported throughput above certain bounds (5Mbps, 1Mbps etc) far more often than below them. This imbalance leads to a single stage model frequently overestimating in low/medium throughput situations. Overestimating in these low or medium throughput scenarios leads to a noticeable decrease in the perceived quality of delivery in applications such as video streaming. 
+
+The choice of the number of bounds (and subsequently models) and how to classify a given sequence of input data is arbitrary. For the purposes of this paper, dividing the data into one of three bounds sufficed. The following download throughput ranges were chosen to label given sequences of data:
+
+•Low: $ y< 1Mbps$ \\
+•Medium: $1Mpbs \leq y \leq 5Mpbs$ \\
+•High: $y > 5Mbps$ \\
+
+For forecasting, Lstm models are typically trained on x, y pairs where x is historic data of the predictor features over the past p seconds and y is the true value of the target variable of the next k seconds. As seen above, y is used to classify a given pair as an example of either low, medium or high throughput.
