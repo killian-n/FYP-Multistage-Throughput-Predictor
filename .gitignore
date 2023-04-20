@@ -20,5 +20,7 @@ Own Papers/Undergraduate Paper/*.bbl
 Own Papers/Undergraduate Paper/*.dvi
 Own Papers/Undergraduate Paper/*.log
 Own Papers/Undergraduate Paper/*.blg
+Own Papers/Undergraduate Paper/*.xml
+Own Papers/Undergraduate Paper/*.bcf
 run.bat
 Datasets/Images/
