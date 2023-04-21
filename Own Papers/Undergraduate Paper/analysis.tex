@@ -56,10 +56,10 @@ A typical input for an Lstm model used in forecasting takes the shape of: $[ n, 
 \label{fig:example_of_ts}
 \end{figure}
 
-In general a larger history window leads to a better prediction \cite{}. There are many methods for identifying the optimal length of the horizon and history windows. The application the model is being deployed in will also place restrictions on 
-
+There are many methods for identifying the optimal length of the horizon and history windows. Correlation based methods such as ACF 
 
 \section{Identifying Bounds for Mutlistage Models}
+\label{sec:bounds}
 Two multistage approaches for modelling throughput prediction were considered in this paper. Each of the two architectures however share the same base models. The first model is a simple classifier that aims to predict a future throughput as one of 3 distinct situations, low throughput, medium throughput or high throughput. The choice to divide the problem based on the value of the download throughput comes from the fact that traces typically reported throughput above certain bounds (5Mbps, 1Mbps etc) far more often than below them. This imbalance leads to a single stage model frequently overestimating in low/medium throughput situations. Overestimating in these low or medium throughput scenarios leads to a noticeable decrease in the perceived quality of delivery in applications such as video streaming. 
 
 The choice of the number of bounds (and subsequently models) and how to classify a given sequence of input data is arbitrary. For the purposes of this paper, dividing the data into one of three bounds sufficed. The following download throughput ranges were chosen to label given sequences of data:
