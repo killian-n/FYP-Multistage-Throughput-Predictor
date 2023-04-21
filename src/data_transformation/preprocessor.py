@@ -743,16 +743,16 @@ class DataPreProcessor:
         return self.__scale_data
 
 if __name__ == "__main__":
-    # raw_data = pd.read_csv(config["global"]["PROJECT_PATH"]+"/Datasets/Raw/all_4G_data.csv", index_col=None)
-    # preprocessor = DataPreProcessor(raw_data, include_features=["RSRP", "RSRQ", "SNR", "CQI", "RSSI", "UL_bitrate",
-    #                                                              "State","NetworkMode", "Longitude", "Latitude", "NRxRSRQ", "NRxRSRP"], manual_mode=True)
-    # preprocessor.one_hot_encode()
-    # data = preprocessor.get_df()
-    # data = preprocessor.apply_scaler(data, train=True)
-    # data = preprocessor.knn_impute(data, train=True)
-    # data = preprocessor.inverse_scale(data, is_x=True)
+    raw_data = pd.read_csv(config["global"]["PROJECT_PATH"]+"/Datasets/Raw/all_4G_data.csv", index_col=None)
+    preprocessor = DataPreProcessor(raw_data, include_features=["RSRP", "RSRQ", "SNR", "CQI", "RSSI", "UL_bitrate",
+                                                                 "State","NetworkMode", "Longitude", "Latitude", "NRxRSRQ", "NRxRSRP"], manual_mode=True)
+    preprocessor.one_hot_encode()
+    data = preprocessor.get_df()
+    data = preprocessor.apply_scaler(data, train=True)
+    data = preprocessor.knn_impute(data, train=True)
+    data = preprocessor.inverse_scale(data, is_x=True)
     # data = preprocessor.create_averaged_features(dataframe=data)
-    # data.to_csv(config["global"]["PROJECT_PATH"]+"/Datasets/processed_network_data.csv", index=False, encoding="utf-8")
+    data.to_csv(config["global"]["PROJECT_PATH"]+"/Datasets/unaveraged_processed_network_data.csv", index=False, encoding="utf-8")
 
     data = np.random.sample((100, 5))
     data = np.round(data, 0)
