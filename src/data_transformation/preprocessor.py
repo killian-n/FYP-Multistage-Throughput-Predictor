@@ -168,7 +168,7 @@ class DataPreProcessor:
             self.__y_test_labels_sparse = self.create_labels(self.__y_test, sparse=True, scaled=scaled)
             if self._balance:
                 self.__x_train_balanced, self.__y_train_labels_balanced = self.balance_labels(self.__x_train, self.__y_train_labels)
-                self.__x_train_balanced, self.__y_train_labels_sparse_balanced = self.balance_labels(self.__x_train, self.__y_train_labels_sparse, sparse=True)
+                self.__y_train_balanced, self.__y_train_labels_sparse_balanced = self.balance_labels(self.__y_train, self.__y_train_labels_sparse, sparse=True)
             self.separate_by_label(train=True)
             self.separate_by_label(train=False)
             self.save_scaler()
@@ -599,6 +599,9 @@ class DataPreProcessor:
 
     def get_train_sequences(self):
         return np.array(self.__x_train), np.array(self.__y_train)
+    
+    def get_balanced_train_sequences(self):
+        return np.array(self.__x_train_balanced), np.array(self.__y_train_balanced)
 
     def get_label_predictor_train(self, sparse=False):
         if sparse:
@@ -697,7 +700,10 @@ class DataPreProcessor:
         x, y = self.get_label_predictor_train(sparse=False)
         np.save(train_dir+"{}_classifier_train_x".format(self._name), x)
         np.save(train_dir+"{}_classifier_train_y".format(self._name), y)
-        
+        if self._balance:
+            x, y = self.get_balanced_train_sequences()
+            np.save(train_dir+"{}_balanced_train_x".format(self._name), x)
+            np.save(train_dir+"{}_balanced_train_y".format(self._name), y)
         
         # Testing Datasets
         test_dir = config["global"]["TESTING_DATASETS_PATH"]
