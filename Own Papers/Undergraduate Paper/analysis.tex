@@ -1,71 +1,96 @@
-\chapter{Problem Analysis}
+\chapter{Data Transformation}
 Throughput prediction for wireless networks is inherently difficult. This paper explores the use of a multistage approach to throughput prediction using deep learning based techniques. There are numerous considerations before trying to model any time series problem such as availability of relevant data, selection of model, feature selection, imputation etc. There are also more application specific items to consider such as how long of a history window should be used for predictions or how far into the future should be predicted? How to decompose the problem also influences the architecture of a multistage approach. This section explores these issues.
 
-\section{Understanding the Dataset}
-The dataset used in this paper was collected by researchers in University College Cork in and around the greater Cork City area. Data was collected using an Android network monitoring application, G-NetTrack Pro. Apple devices currently do not have any equivalent application for collecting cellular network analytics. The dataset is a collection of 135 different traces approximately 15 minutes in length on average. Traces were collected by the UCC researchers under a number of different movement patterns. The traces are divided based on the following movement patterns:
+\section{Sequence construction}
+The models were trained on input, target sequences constructed using a rolling window over the observed time series data. Sequences were created on a trace by trace basis, i.e. there is no 1 sequence that contains observations from 2 different traces. A pair of input, target sequences will herein be referred to as a sample observation.
 
-•\textbf{Static}: The trace was collected while the mobile devices location remained fixed. This is characteristic of a common use case for mobile devices such as watching video while seated at a desk. Such a use case presents the best case scenario for a cellular network as the connection will experience low variability in its stability.
-
-•\textbf{Car}: The trace was collected while travelling in Cork city and its surrounding suburbs by car.
-
-•\textbf{Train}: The trace was collected while travelling by train. These traces contain a mix of both 4G and 3G as availability for 4G networks was in urban areas only at the time these experiments took place.
-
-•\textbf{Bus}: Traces collected while using public transport around Cork City.
-
-•\textbf{Pedestrian}: Traces collected while walking around Cork City center using different routes.
-
-Traces were collected at a variety of times on both weekdays and weekends in order to provide adequate depiction of congestion patterns. The dataset includes of a number of physical layer metrics, as well has GPS metrics and the upload and download bitrate. The following description of the metrics collected was taken directly from the paper \cite{inproceedings} written by the researchers involved in the construction of this dataset. For a more in depth understanding of the dataset I recommend reading their paper. All credit goes to them for the following description of the metrics:
-
-•Timestamp: timestamp of sample \\
-•Longitude and Latitude: GPS coordinates of mobile device \\
-•Velocity: velocity in kph of mobile device \\ 
-•Operatorname: cellular operator name (anonymised) \\
-•CellId: Serving cell for mobile device \\
-•NetworkMode: mobile communication standard (2G/3G/4G) \\
-•RSRQ: value for RSRQ. RSRQ Represents a ratio between RSRP and Received Signal Strength Indicator (RSSI). Signal strength (signal quality) is measured across all resource elements (RE), including interference from all sources (dB). \\
-•RSRP: value for RSRP. RSRP Represents an average power over cell-specific reference symbols carried inside distinct RE. RSRP is used for measuring cell signal strength/coverage and therefore cell selection (dBm). \\
-•RSSI: value for RSSI. RSSI represents a received power (wide-band) including a serving cell and interference and noise from other sources. RSRQ, RSRP and RSSI are used for measuring cell strength/coverage and therefore cell selection(handover) (dBm)0\\
-•SNR: value for signal-to-noise ratio (dB). \\
-•CQI: value for CQI of a mobile device. CQI is a feedback provided by UE to eNodeB. It indicates data rate that could be transmitted over a channel (highest MCS with a BLER probability less than 10\%), as the function of SINR and UE’s receiver characteristics. Based on UE’s prediction of the channel, eNodeB selects an appropriate modulation scheme and coding rate. \\
-•DL\_bitrate: download rate measured at the device (application layer) (kbit/s) \\
-•UL\_bitrate: uplink rate measured at the device (application layer) (kbit/s) \\
-•State: state of the download process. It has two values, either I (idle, not downloading) or D (downloading) \\
-•NRxRSRQ \& NRxRSRP: RSRQ and RSRP values for the neighbouring cell. \\
-•Cell\_Longitude \& Cell\_Latitude: GPS coordinates of serving eNodeB. We use OpenCelliD4, the largest community open database providing GPS coordinates of cell towers. \\
-•Distance: distance between the serving cell and mobile device in metres.
-
-\newpage
-\section{Considerations of the Dataset}
-
-As the dataset is a collection of separate traces (experiments), this must be taken into account when constructing train and test splits. The entire dataset cannot be viewed a a series of disconnected time series as traces start from different physical locations, run for different lengths of time and use the same workload as a starting point for measuring network data. As such special care must be taken in order to ensure proper construction of train-test sequences.
-
-The dataset contains considerable missing values for some network features such as NRxRSRP \& NRxRSRQ. Lstm based machine learning techniques require complete data. As such imputation had to be carried out to fill in these gaps. There are various methods of imputation such as mean imputation, max or min imputation, K nearest neighbours (knn) based imputation methods and more. Some of these methods were considered in this project but it is important to note that no imputation method is perfect. Understanding of the missingness observed in the data may lead to choosing one method over the other. 
-
-Methods like knn imputation also require considerable computational power \& space in memory compared to other more simple methods. This limits the usefulness of such a method to the training phase of a throughput predictor only. Knn or other complex imputation methods would not be viable for deployment directly on the mobile device due to the space and computational constraints of mobile devices. Edge computing would allow for more complicated imputation methods however there is also a time penalty for more complicated methods.
-
-Some features collected are not reported directly by the G-NetTrack Pro such as cell tower location data. As such these features were excluded from consideration in this project. If such information was made more readily available in the future it may prove useful in throughput prediction applications however this is outside the scope of the project.
-
-While this dataset is robust in its construction and depiction of typical mobile communication system scenarios, it is not universal. Mobile network infrastructure implementations vary heavily by location. This dataset contains a mix of 2G/3G/4G networks. Older wireless communication technologies have different network environment distributions. As technology continues to progress the model will suffer from distribution shift.
+For a given pair of input and target, the input sequence is the observed values of the predictor features over the past $p$ seconds. The target is the observed $DL\_bitrate$ of the next $k$ seconds. The variables $p$ and $k$ are referred to as the history and horizon window respectively. A single input sequence takes the shape of a [n x f] matrix where f is the no of features used to predict the target. A single target sequence takes the shape of a [k x 1] matrix as we are only interested in predicting $DL\_bitrate$. For example in the univariate case we used a history window of 10 seconds, a horizon window of 5 seconds. Previous values of $DL\_bitrate$ were used to predict the throughput horizon. E.g.
+\begin{equation}
+\begin{aligned}
+ input&: [10 \times 1] \\
+ target&: [5 \times 1]
+\end{aligned}
+\end{equation}
 
 \section{Choice of History \& Horizon Windows}
 A typical input for an Lstm model used in forecasting takes the shape of: $[ n, p, q ]$ where n is the number of examples, p is the length of the history window and q is the number of features. The output will then be in the form of $[n, k, s ]$ where k is the length of the horizon window and s is the number of target variables the model predicts, typically s=1. Fig \ref{fig:example_of_ts} illustrates the construction of a single example in the univariate case.
 
 \begin{figure}[h]
 \includegraphics[scale=0.15]{History Horizon.png}
+\centering
 \caption{Graph showing how a history and horizon window can be constructed for a feature in time series data}
 \label{fig:example_of_ts}
 \end{figure}
 
-There are many methods for identifying the optimal length of the horizon and history windows. Correlation based methods such as ACF 
+There are many methods for identifying the optimal length of the horizon and history windows. Well studied methods such as the ACF (auto correlation function) or PACF (partial auto correlation function) \cite{10.2307/2958346} are useful for identifying temporal dependencies in the univariate case. The multivariate case is more complex. A selection of different combinations of horizon and history windows were considered to evaluate the impact each has on the throughput horizon predictions. The horizon window is more application dependent. The granularity of data available to us through G-NetTrack Pro is one second. In general more time sensitive applications such as web-conferencing would benefit a smaller horizon window. This incurs the cost of more computational power as the throughput prediction model must be run more frequently. Inversely, less time sensitive applications could use a longer horizon window. For throughput prediction, if the average horizon throughput is the main variable of interest then a longer horizon length may actually benefit predictions as the average will be calculated over a greater number of throughput predictions \cite{raca2019improving}.
 
-\section{Identifying Bounds for Mutlistage Models}
+\section{Selection of train/test Splits}
+Typical train/test splits divide the dataset in a given ratio, usually 80:20 for train and test respectively. This is difficult to reproduce with this dataset as the dataset is not a single continuous time series but a collection of 135 distinct time series experiments. Train and test can be created by dividing the dataset based on the number of traces however, as seen in \ref{sec:distribution} the traces are of varying length making it difficult to split the dataset based on solo on the count. Instead, division of the traces was viewed an an optimisation problem. For each trace, the number of observations for each class of low, medium and high throughput was calculated. The number of observations of each class will vary based on the chosen horizon length and as such, different choices of horizon length will require a different train and test partition. The output of this process is as follows:
+\begin{table}[!htb]
+  \centering
+  \caption{Example of Label Counting Output}
+  \begin{tabular}{|c|c|c|c|}
+    \hline
+    Trace No. & Low Sequence Count & Medium Sequence Count & High Sequence Count \\
+    \hline
+    0 & 10 & 30 & 100 \\
+    1 & 4 & 32 & 70\\
+    2  & 0 & 60 & 130\\
+    \hline
+  \end{tabular}
+\end{table}
+The class counts per trace were then used to calculate a percentage of the total number of observations in each class over all traces contained within each trace. These percentages are then used partition the 135 traces in a given ratio (4:1 was used) in order to achieve the desired distribution of sequences in the train/test sets. Ideally the train set would include: \\
+- 80\% of all low samples, 80\% of all medium samples and 80\% of all high samples \\
+- Test would be the remainder i.e 20\% of low, medium and high \\
+
+In practice it is difficult to find a split of traces that achieves the perfect ratio between low/medium/high for train and test. Instead a large number (10000) of potential splits are created and their class \% are measured. The split that is chosen is the train/test split with the lowest sum of differences between \% training low, medium, high, that is to say, train/test split chosen has the closest distribution to the desired distribution outlined above.
+
+\section{Identifying Bounds for Mutlistage Model Classes}
 \label{sec:bounds}
-Two multistage approaches for modelling throughput prediction were considered in this paper. Each of the two architectures however share the same base models. The first model is a simple classifier that aims to predict a future throughput as one of 3 distinct situations, low throughput, medium throughput or high throughput. The choice to divide the problem based on the value of the download throughput comes from the fact that traces typically reported throughput above certain bounds (5Mbps, 1Mbps etc) far more often than below them. This imbalance leads to a single stage model frequently overestimating in low/medium throughput situations. Overestimating in these low or medium throughput scenarios leads to a noticeable decrease in the perceived quality of delivery in applications such as video streaming. 
+Two multistage approaches for modelling throughput prediction were considered in this paper. Each of the two architectures however share the same base models. Both multistage architectures proposed make use of a simple classifier that aims to predict a horizon throughput as one of 3 distinct situations, low throughput, medium throughput or high throughput. The choice to divide the problem based on the value of the download throughput comes from the fact that traces typically reported throughput above certain bounds (5Mbps, 1Mbps etc) far more often than below them. This imbalance leads to a single stage model frequently overestimating in low/medium throughput situations. Overestimating in these low or medium throughput scenarios leads to a noticeable decrease in the perceived quality of experience in applications such as video streaming \cite{raca2019improving} and is one of the main motivations of the multistage approach. 
 
-The choice of the number of bounds (and subsequently models) and how to classify a given sequence of input data is arbitrary. For the purposes of this paper, dividing the data into one of three bounds sufficed. The following download throughput ranges were chosen to label given sequences of data:
+The choice of the number of bounds (and subsequently models) and how to classify a given sequence of input data is arbitrary. For the purposes of this paper, dividing the data into one of three bounds sufficed. The sequences were divided by horizon download throughput into the three following ranges:
 
-•Low: $ y< 1Mbps$ \\
-•Medium: $1Mpbs \leq y \leq 5Mpbs$ \\
-•High: $y > 5Mbps$ \\
+•Low: $ mean[y] < 1Mbps$ \\
+•Medium: $1Mpbs \leq mean[y] \leq 5Mpbs$ \\
+•High: $ mean[y] > 5Mbps$ \\
 
-For forecasting, Lstm models are typically trained on x, y pairs where x is historic data of the predictor features over the past p seconds and y is the true value of the target variable of the next k seconds. As seen above, y is used to classify a given pair as an example of either low, medium or high throughput.
+For forecasting, Lstm models are typically trained on x, y pairs where x is historic data of the predictor features over the past p seconds and y is the true value of the target variable of the next k seconds. The average download throughput of y was used to classify a given trace as an example of high, medium or low throughput.
+
+The bounds 1Mbps and 5Mbps were chosen based on domain knowledge. Popular video streaming applications provide guidelines for the required download throughput for given video quality. As of the time of writing, 720p video requires 3Mbps on Netlfix whereas Youtube and Amazon Prime Video require at least 5Mbps of download throughput. While the adoption of AV1 hardware encoding may lower the required bitrate for HD video, use of the codec is still a while off mass market adoption and providers could choose to maintain the current bitrate while providing better quality source content.
+
+\section{Feature Selection}
+Feature selection is an important step in any machine learning problem. Good feature selection is known to improve loss, increase runtime performance and improve the understandability of predictions \cite{guyon2003introduction}.
+Feature selection for multivariate time series is still an evolving field. The challenge is that the a selected feature set must capture the correlation between the target variable and predictors as well as between the target variable and lagged values of the predictors.
+
+Feature selection is important for the analysis of multistage vs single stage throughput predictors explored this paper as it is an effective method in reducing the number of parameters of a given model. This is especially important when tight constraints are put on model size (in memory) and speed of inference, as is the case for models intended for mobile devices.
+
+As the dimensionality of the dataset is relatively low with only 16 raw features traditional methods such as RFE (recursive feature elimination), PCA (principle component analysis) and permutation feature importance were all used. Geo-location data related to the serving cell tower was not considered for use. This data is currently not readily available on mobile devices and had to be gathered from a third party source.
+
+An Lstm was fit on all network related features, as well as location data for the mobile device. Permutation feature importance was then carried out on this model. The metric we chose to compare the results of this test is the mean absolute percentage error (MAPE) given by the following formula: \\
+
+\begin{equation}
+MAPE = \frac{1}{n} \times \frac{\left|true-predicted\right|}{true} \times 100
+\end{equation}
+where $n$ is the number of observations in the test set.
+
+The procedure for permutation feature importance is as follows:
+
+- Given a target variable $Y$, with predictor variables $X=\{X_1,X_2,X_3,...X_n\}$ \\
+- Create a train/test split of the dataset \\
+- Fit a model on the training data using all features in $X$ \\
+- Compute the loss of the model on the test set to use as a baseline \\
+- Randomly shuffle the values of one feature $X_k$ in the test set and compute the loss with just this feature's values shuffled. Do this $\forall X_k \in X$. \\
+- Compared the performance of the model on the test set with the performance of the model on each test set with a shuffled feature \\
+- Rank the features based on the difference in performance \\
+- Use this ranked list to identify possible features to eliminate \\
+
+The results of this analysis can be seen in figure \ref{fig:feature_importance}. The model relied heavily on the categorical feature "NetworkMode" which was one-hot-encoded for accurate predictions. RSRQ also contributed significantly to model performance.
+\newpage
+\begin{figure}[h]
+\includegraphics[scale=0.5]{Images/feature_importance.png}
+\centering
+\caption{Bar Chart showing Difference in Model Performance with Permuted Feature Column.}
+\label{fig:feature_importance}
+\end{figure}
+

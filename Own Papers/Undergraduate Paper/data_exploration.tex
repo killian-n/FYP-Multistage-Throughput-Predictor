@@ -1,0 +1,86 @@
+\chapter{Data Exploration}
+Before training any model in machine learning thorough understanding of the dataset is paramount. All 135 traces were combined into one data frame so that the entire dataset could be considered going forward. Trace and movement pattern were preserved. 
+
+
+\section{Outline of the Dataset}
+The dataset used in this paper was collected by researchers in University College Cork in and around the greater Cork City area. Data was collected using an Android network monitoring application, G-NetTrack Pro. Apple devices currently do not have any equivalent application for collecting cellular network analytics. The dataset is a collection of 135 different traces approximately 15 minutes in length on average. Traces were collected by the UCC researchers under a number of different movement patterns. The traces are divided based on the following movement patterns:
+
+•\textbf{Static}: The trace was collected while the mobile devices location remained fixed. This is characteristic of a common use case for mobile devices such as watching video while seated at a desk. Such a use case presents the best case scenario for a cellular network as the connection will experience low variability in its stability.
+
+•\textbf{Car}: The trace was collected while travelling in Cork city and its surrounding suburbs by car.
+
+•\textbf{Train}: The trace was collected while travelling by train. These traces contain a mix of both 4G and 3G as availability for 4G networks was in urban areas only at the time these experiments took place.
+
+•\textbf{Bus}: Traces collected while using public transport around Cork City.
+
+•\textbf{Pedestrian}: Traces collected while walking around Cork City center using different routes.
+
+Traces were collected at a variety of times on both weekdays and weekends in order to provide adequate depiction of congestion patterns. The dataset includes of a number of physical layer metrics, as well has GPS metrics and the upload and download bitrate. The following description of the metrics collected was taken directly from the paper \cite{inproceedings} written by the researchers involved in the construction of this dataset. For a more in depth understanding of the dataset I recommend reading their paper. All credit goes to them for the following description of the metrics:
+
+•Timestamp: timestamp of sample \\
+•Longitude and Latitude: GPS coordinates of mobile device \\
+•Velocity: velocity in kph of mobile device \\ 
+•Operatorname: cellular operator name (anonymised) \\
+•CellId: Serving cell for mobile device \\
+•NetworkMode: mobile communication standard (2G/3G/4G) \\
+•RSRQ: value for RSRQ. RSRQ Represents a ratio between RSRP and Received Signal Strength Indicator (RSSI). Signal strength (signal quality) is measured across all resource elements (RE), including interference from all sources (dB). \\
+•RSRP: value for RSRP. RSRP Represents an average power over cell-specific reference symbols carried inside distinct RE. RSRP is used for measuring cell signal strength/coverage and therefore cell selection (dBm). \\
+•RSSI: value for RSSI. RSSI represents a received power (wide-band) including a serving cell and interference and noise from other sources. RSRQ, RSRP and RSSI are used for measuring cell strength/coverage and therefore cell selection(handover) (dBm)0\\
+•SNR: value for signal-to-noise ratio (dB). \\
+•CQI: value for CQI of a mobile device. CQI is a feedback provided by UE to eNodeB. It indicates data rate that could be transmitted over a channel (highest MCS with a BLER probability less than 10\%), as the function of SINR and UE’s receiver characteristics. Based on UE’s prediction of the channel, eNodeB selects an appropriate modulation scheme and coding rate. \\
+•DL\_bitrate: download rate measured at the device (application layer) (kbit/s) \\
+•UL\_bitrate: uplink rate measured at the device (application layer) (kbit/s) \\
+•State: state of the download process. It has two values, either I (idle, not downloading) or D (downloading) \\
+•NRxRSRQ \& NRxRSRP: RSRQ and RSRP values for the neighbouring cell. \\
+•Cell\_Longitude \& Cell\_Latitude: GPS coordinates of serving eNodeB. We use OpenCelliD4, the largest community open database providing GPS coordinates of cell towers. \\
+•Distance: distance between the serving cell and mobile device in metres.
+
+\newpage
+\section{Considerations of the Dataset}
+
+As the dataset is a collection of separate traces (experiments), this must be taken into account when constructing train and test splits. The entire dataset cannot be viewed a a series of disconnected time series as traces start from different physical locations, run for different lengths of time and use the same workload as a starting point for measuring network data. As such special care must be taken in order to ensure proper construction of train-test sequences. Construction of a robust train/test split required    
+
+The dataset contains considerable missing values for some network features such as NRxRSRP \& NRxRSRQ. Lstm based machine learning techniques require complete data. As such imputation had to be carried out to fill in these gaps. There are various methods of imputation such as mean imputation, max or min imputation, K nearest neighbours (knn) based imputation \cite{batista2002study} methods and more. Some of these methods were considered in this project but it is important to note that no imputation method is perfect. Understanding of the missingness observed in the data may lead to choosing one method over the other. 
+
+Methods like knn imputation also require considerable computational power \& space in memory compared to other more simple methods. This limits the usefulness of such a method to the training phase of a throughput predictor only. Knn or other complex imputation methods might not be viable for deployment directly on the mobile device due to the space and computational constraints of mobile devices. Edge computing would allow for more complicated imputation methods however there is also a time penalty for more complex methods.
+
+Some features collected are not reported directly by the G-NetTrack Pro such as cell tower location data. As such these features were excluded from consideration in this project. If such information was made more readily available to mobile devices in the future it may prove useful in throughput prediction applications however this is outside the scope of the project.
+
+While this dataset is robust in its construction and depiction of typical mobile communication system scenarios, it is not universal. Mobile network infrastructure implementations vary heavily by location. This dataset contains a mix of 2G/3G/4G networks. Older wireless communication technologies have different network environment distributions. As technology continues to progress the models will suffer from distribution shift. 
+
+\section{Identifying Missing Values}
+Firstly we aimed to understand the nature of missing values included in the dataset. The models considered in this paper require complete data for training. Understanding the nature of missing values in the dataset is vital in the process of selecting methods of imputation\cite{DONDERS20061087}. From figure \ref{fig:missing_bar} we observed that physical layer features SNR and CQI were unreported in approximately 30\% of sample observations with RSSI being unreported in 37\%. Cell tower related features also exhibited missing values in approximately 30\% of sample points. The degree of missingness  rules out excluding observations that containing missing values from consideration.
+
+\begin{figure}[h]
+\includegraphics[scale=0.3]{Images/missing_bar.png}
+\centering
+\title{Bar Chart of Missing Values}
+\caption{Bar chart showing the total number of missing values for each feature over all traces.}
+\label{fig:missing_bar}
+\end{figure}
+
+We then checked for correlation between observations of missing values in each column. From Figure \ref{fig:missing_heatmap} we observed a strong correlation between when the mobile device failed to report a value for the physical layer features RSSI, CQI and SNR. Geo-location data for the serving cell tower also exhibits strong positive correlation with the physical layer features. NRxRSRQ \& NRxRSRP show moderate negative correlation with for missing values with the previously mentioned features. Figure \ref{fig:missing_matrix} provides an alternative way to view these relations.
+
+\begin{figure}[h]
+\includegraphics[scale=0.3]{Images/missing_heatmap.png}
+\centering
+\title{Correlation of Observed Missing Values}
+\caption{}
+\label{fig:missing_heatmap}
+\end{figure}
+
+
+\begin{figure}[h]
+\includegraphics[scale=0.3]{Images/missing_matrix.png}
+\centering
+\title{Visualisation of the Datasets Missing Values}
+\caption{White regions indicate a missing value for that row. Diagram was sorted by RSSI to group missing rows together.}
+\label{fig:missing_matrix}
+\end{figure}
+
+From this brief analysis we can conclude that the majority of the missingness observed in the dataset is MNAR (missing not at random). Attempting to impute these missing values using simple imputation methods such as mean imputation would have introduced bias into the analysis \cite{DONDERS20061087}. We concluded that figure \ref{fig:missing_matrix} identifies a reasonable cause of the missing entries. The strong positive correlation between missing values in physical layer features and the geo-location features of the serving cell suggest that the mobile device is on the edge of the current serving cell's range. This hypothesis is further reinforced by the negative correlation observed with the missing entries in neighbouring tower's physical layer features. The negative correlation suggests that neighbouring towers are more likely to be reporting values for RSRP and RSRQ when the current cell tower is not reporting values for CQI, SNR, RSSI and its geo-location data. This would make sense if the mobile device is moving into the range of a neighbouring cell tower.
+
+Moving forward with this hypothesis, responsible methods of imputation were inferred for each feature, and explored further in \ref{sec:imputation}.
+
+\section{Effects of Movement Patterns}
+The five movement patterns in which traces were collected all give rise to different throughput distributions. 

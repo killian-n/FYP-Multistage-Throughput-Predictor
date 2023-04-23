@@ -1,14 +1,26 @@
 \chapter{Design}
-The focus of this paper is to explore the differences between a single model and a multistage architecture for throughput prediction in wireless networks. The choice of machine learning or deep learning model must therefore be consistent across all models considered in this paper to avoid confusing the issue as that of comparing one ML or DL method of regression with another. Lstm(long short-term memory) networks are recognised as effective models for time series forecasting \cite{8614252}, with deep learning models in general performing well in networking related tasks \cite{8666641}. As such any individual model considered in this paper will take the form of an Lstm. Intial comparisons of multistage vs a single model will ensure that all Lstm models have the same internal architecture. That is to say, all models have the same number of nodes, layers, the same dropout chance, activation function, optimizer, etc. The only difference between the individual models considered will be that the classifier model has a different output layer to the traditional regression models as it aims to predict the class of the input sequence as opposed to the DL_bitrate horizon.
+The focus of this paper is to explore the differences between a single model and a multistage architecture for throughput prediction in wireless networks. The choice of machine learning or deep learning model must therefore be consistent across all models considered to avoid confusing the issue with that of comparing one ML or DL method of regression with another. Lstm (long short-term memory) networks are recognised as effective models for time series forecasting \cite{8614252}, with deep learning models in general performing well in networking related tasks \cite{8666641}. As such any individual model considered in this paper is some form of Lstm deep network. Initial comparisons of multistage vs a single model ensure that all Lstm models have the same internal architecture. That is to say, all models have the same number of nodes, layers, the same dropout chance, activation function, optimizer, etc. The only difference between the individual models considered will be that the classifier model has a different output layer to the traditional regression models as it aims to predict the class of the input sequence as opposed to the DL\_bitrate horizon.
 
-In \ref{CONSTRAINTS HEREHERHEHREHR} the number of parameters of the Lstm models were altered in various ways, in order to achieve memory size parity between the single baseline throughput predictor and the multistage models. This is an important point to explore as adoption of a multistage approach vs a single model on mobile devices will require that both models have comparable performance on hardware. That is to say that a multistage approach could only be considered more optimal if the required memory and inference time were comparable. By design a multistage approach will be bigger than a single model, as such the total number of parameters of both approaches should be equalised for further comparison.
+In \ref{CONSTRAINTS HEREHERHEHREHR} the number of parameters of the Lstm models were altered in various ways in order to achieve memory size parity between the single baseline throughput predictor and the multistage models. This is an important point to explore as adoption of a multistage approach vs a single model on mobile devices will require that both models have comparable performance on hardware. A multistage approach could only be considered more optimal if the required memory and inference time were comparable. By design a multistage approach will be bigger than a single model, as such the total number of parameters of both approaches should be equalised for further comparison.
+
+
+\section{}
+
+
+\section{Train Test Split Construction}
+T
+
+
+\section{Standardised Regression model}
+
 
 
 \section{Baseline}
-The baseline model was trained on the entire training dataset.
+The baseline model was trained on the entire training dataset regardless of class.
 
 \section{Multistage One}
 \begin{figure}[h]
+\centering
 \includegraphics[scale=0.15]{Multistage One.png}
 \label{fig:multistage_one}
 \caption{Figure shows the structure of the Multistage One model.}
@@ -18,6 +30,7 @@ The multistage throughput predictor herein referred to by "multistage one" uses 
 
 \section{Multistage All}
 \begin{figure}[h]
+\centering
 \includegraphics[scale=0.15]{Multistage All.png}
 \label{fig:multistage_one}
 \caption{Figure shows the structure of the Multistage All model.}
