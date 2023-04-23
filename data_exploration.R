@@ -1,5 +1,5 @@
-setwd("C:\\Users\\knola\\Desktop\\FYP-Multistage-Throughput-Predictor")
-data <- read.csv("C:\\Users\\knola\\Desktop\\FYP-Multistage-Throughput-Predictor\\Datasets\\processed_network_data.csv")
+setwd("C:\\Users\\Killian\\Desktop\\FYP-Multistage-Throughput-Predictor")
+data <- read.csv("C:\\Users\\Killian\\Desktop\\FYP-Multistage-Throughput-Predictor\\Datasets\\unaveraged_processed_network_data.csv")
 library(caret)
 library(MASS)
 
@@ -48,9 +48,10 @@ rpcs_table
 
 
 # Auto correlation
-image_dir = "C:\\Users\\knola\\Desktop\\FYP-Multistage-Throughput-Predictor\\Datasets\\Images\\"
+image_dir = "C:\\Users\\Killian\\Desktop\\FYP-Multistage-Throughput-Predictor\\Own Papers\\Undergraduate Paper\\Images\\"
 names = colnames(data[which(data$session==1), -c(which(colnames(data)=="session"))])
-max_lag = 70
+names
+max_lag = 60
 dl_bitrate_acf = matrix(nrow=135, ncol=max_lag+1)
 for (i in 0:134) {
   trace <- as.matrix(data[which(data$session==i), -c(which(colnames(data)=="session"))])
@@ -59,10 +60,52 @@ for (i in 0:134) {
 }
 
 average_acf <- colMeans(dl_bitrate_acf)
+std_acf <- apply(dl_bitrate_acf, 2, sd)
+std_acf
 average_acf
-png(paste0(image_dir,"Average_RSRQ","_ACF.png"), width = 800, height = 600)
-plot(average_acf, main=paste("Average RSRQ ACF over all Traces"), xlab="lag", ylab="ACF")
+
+
+png(paste0(image_dir,"Average_DL_bitrate","_ACF.png"),
+    width = 20, height = 15, units="cm", res=300)
+plot(average_acf, main=paste("Average ACF of Download Throughput over All Traces"),
+     xlab="lag", ylab="ACF", pch=19, font.lab = 2, cex.lab=1.2, cex.axis=1.2)
+upper <- average_acf + std_acf
+lower <- average_acf - std_acf
+lower
+
+shade_x <- c(seq(1,max_lag+1), rev(seq(1,max_lag+1)))
+shade_y <- c(upper, rev(lower))
+polygon(shade_x, shade_y, col = rgb(1,0,0,0.2), border = NA)
 # Close the PNG graphics device
+x <- which(average_acf<0.4)[1]
+segments(-4,0.4,x,0.4, col="blue", lwd=2)
+segments(x,0,x,0.4, col="blue", lwd=2)
+abline(h = 0.6, lty = 2, col = "grey")
+abline(h = 0.4, lty = 2, col = "grey")
+abline(h = 0.8, lty = 2, col = "grey")
+axis(side = 1, at = x, labels = x,
+     col.axis = "blue", col.ticks = "blue", cex.axis=1.2)
+par(font.axis = 2)
 dev.off()
 
+dev.new()
 
+max_lag = 30
+cross_cors = array(dim=c(ncol(data)-2,(2*max_lag)+1, 135))
+for (i in 0:134) {
+  trace <- as.matrix(data[which(data$session==i), -c(which(colnames(data)=="session"))])
+  for (feature in 2:ncol(trace)) {
+    ccor = ccf(trace[,1], trace[,feature], lag.max = max_lag, plot=F)
+    cross_cors[feature-1,,i] = ccor$acf
+  }
+}
+colnames(data)
+snr <- rowMeans(cross_cors[6,,], na.rm=T)
+plot(x=seq(-max_lag,max_lag),y=snr, xlab="lag")
+
+
+for (i in 0:134) {
+  trace <- as.matrix(data[which(data$session==i), -c(which(colnames(data)=="session"))])
+  trace_cor <- cor(trace)
+  trace_cor[is.na(trace_cor)] = 0
+}
