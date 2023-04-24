@@ -96,7 +96,7 @@ for (i in 0:134) {
   trace <- as.matrix(data[which(data$session==i), -c(which(colnames(data)=="session"))])
   for (feature in 2:ncol(trace)) {
     ccor = ccf(trace[,1], trace[,feature], lag.max = max_lag, plot=F)
-    cross_cors[feature-1,,i] = ccor$acf
+    cross_cors[feature-1,,i+1] = ccor$acf
   }
 }
 colnames(data)
@@ -104,8 +104,22 @@ snr <- rowMeans(cross_cors[6,,], na.rm=T)
 plot(x=seq(-max_lag,max_lag),y=snr, xlab="lag")
 
 
+library(corrplot)
+correlation_matrix = array(dim=c(20,20,135))
 for (i in 0:134) {
   trace <- as.matrix(data[which(data$session==i), -c(which(colnames(data)=="session"))])
+  trace[,c(4:8)] <- exp(abs(trace[,c(4:8)]))
+  colnames(trace)
   trace_cor <- cor(trace)
   trace_cor[is.na(trace_cor)] = 0
+  correlation_matrix[,,i+1] = trace_cor
 }
+colnames(data)
+cor_2d <- matrix(correlation_matrix, nrow=20*20, ncol=135)
+
+mean_cor_2d <- rowMeans(cor_2d)
+average_cor_matrix = matrix(mean_cor_2d, nrow=20, ncol=20)
+colnames(average_cor_matrix) = colnames(trace)
+rownames(average_cor_matrix) = colnames(trace)
+corrplot(average_cor_matrix)
+average_cor_matrix[,2]

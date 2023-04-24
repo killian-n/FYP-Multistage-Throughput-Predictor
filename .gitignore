@@ -23,4 +23,8 @@ Own Papers/Undergraduate Paper/*.blg
 Own Papers/Undergraduate Paper/*.xml
 Own Papers/Undergraduate Paper/*.bcf
 run.bat
-Datasets/Images/
+Own Papers/Undergraduate Paper/Images
+.RData
+.Rhistory
+Datasets/
+src/saved.objects/

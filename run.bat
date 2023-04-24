@@ -1,49 +1,107 @@
 @echo off
 set "SCRIPT_DIR=%~dp0"
 REM REPLACE WITH YOUR PYTHON ENVIRONMENT
-set python_environment="C:/Users/knola/miniconda3/Scripts/activate"
+set python_environment="C:/Users/Killian/miniconda3/Scripts/activate"
 set "PYTHONPATH=%PYTHONPATH%;%SCRIPT_DIR%"
 for /r %SCRIPT_DIR%"\src" %%i in (.) do @copy %SCRIPT_DIR%"project.env" "%%i" > nul
-
 call %python_environment% tf
-set run_prefix="presentation"
-set univariate_prefix="univariate"
+
+set run_prefix="constraint_1_5"
+set data_prefix="optimal"
+
+@REM cd src\data_transformation
+@REM python.exe create_datasets.py --prefix %data_prefix% --include RSRQ SNR NRxRSRP State NetworkMode
+@REM cd ..\training_models
+@REM python.exe train_model.py --prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+@REM python.exe train_model.py --prefix %run_prefix% --model "baseline" --data_prefix %data_prefix% --use_balanced True
+@REM python.exe train_model.py --prefix %run_prefix% --model "high" --data_prefix %data_prefix%
+@REM python.exe train_model.py --prefix %run_prefix% --model "medium" --data_prefix %data_prefix%
+@REM python.exe train_model.py --prefix %run_prefix% --model "low" --data_prefix %data_prefix%
+@REM python.exe train_model.py --prefix %run_prefix% --model "classifier" --data_prefix %data_prefix%
+@REM python.exe train_model.py --prefix %run_prefix% --model "classifier" --data_prefix %data_prefix% --use_balanced True
+
+@REM cd ..\trained_models
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "multiOne" --data_prefix %data_prefix%
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "multiAll" --data_prefix %data_prefix%
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "baseline" --data_prefix %data_prefix% --use_balanced True
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "multiOne" --data_prefix %data_prefix% --use_balanced True --prefix %run_prefix%_up
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "multiAll" --data_prefix %data_prefix% --use_balanced True --prefix %run_prefix%_up
+
+@REM set run_prefix="univariate"
+@REM set data_prefix="univariate"
+@REM cd ..\data_transformation
+@REM python.exe create_datasets.py --prefix %run_prefix%
+@REM cd ..\training_models
+@REM python.exe train_model.py --prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+@REM python.exe train_model.py --prefix %run_prefix% --model "high" --data_prefix %data_prefix%
+@REM python.exe train_model.py --prefix %run_prefix% --model "medium" --data_prefix %data_prefix%
+@REM python.exe train_model.py --prefix %run_prefix% --model "low" --data_prefix %data_prefix%
+@REM python.exe train_model.py --prefix %run_prefix% --model "classifier" --data_prefix %data_prefix%
+
+@REM cd ..\trained_models
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "multiOne" --data_prefix %data_prefix%
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "multiAll" --data_prefix %data_prefix%
+
+@REM set run_prefix="H15H5"
+@REM set data_prefix="H15H5"
+@REM cd ..\data_transformation
+@REM python.exe create_datasets.py --prefix %run_prefix% --history_window 15 --horizon_window 5
+@REM cd ..\training_models
+@REM python.exe train_model.py --prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+
+@REM cd ..\trained_models
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+
+@REM set run_prefix="H20H5"
+@REM set data_prefix="H20H5"
+@REM cd ..\data_transformation
+@REM python.exe create_datasets.py --prefix %run_prefix% --history_window 20 --horizon_window 5
+@REM cd ..\training_models
+@REM python.exe train_model.py --prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+
+@REM cd ..\trained_models
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+
+@REM set run_prefix="H20H10"
+@REM set data_prefix="H20H10"
+@REM cd ..\data_transformation
+@REM python.exe create_datasets.py --prefix %run_prefix% --history_window 20 --horizon_window 10
+@REM cd ..\training_models
+@REM python.exe train_model.py --prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+
+@REM cd ..\trained_models
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+set run_prefix="constraint_1_5"
+set data_prefix="optimal"
+set /a float_value=150/100
+cd src\data_transformation
+@REM python.exe create_datasets.py --prefix %data_prefix% --include RSRQ SNR NRxRSRP State NetworkMode
+cd ..\training_models
+python.exe train_model.py --prefix %run_prefix% --model "baseline" --data_prefix %data_prefix% --size_constraint %float_value%
+python.exe train_model.py --prefix %run_prefix% --model "high" --data_prefix %data_prefix% --size_constraint %float_value%
+python.exe train_model.py --prefix %run_prefix% --model "medium" --data_prefix %data_prefix% --size_constraint %float_value%
+python.exe train_model.py --prefix %run_prefix% --model "low" --data_prefix %data_prefix% --size_constraint %float_value%
+python.exe train_model.py --prefix %run_prefix% --model "classifier" --data_prefix %data_prefix% --size_constraint %float_value%
+cd ..\trained_models
+python.exe test_model.py --model_prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+python.exe test_model.py --model_prefix %run_prefix% --model "multiOne" --data_prefix %data_prefix%
+python.exe test_model.py --model_prefix %run_prefix% --model "multiAll" --data_prefix %data_prefix%
+
+cd ..\..
+set run_prefix="constraint_3"
+set data_prefix="optimal"
 
 cd src\data_transformation
-@echo on
-python.exe create_datasets.py --prefix %run_prefix% --include RSRQ RSRP RSSI SNR CQI NRxRSRP NRxRSRQ
-@echo off
+@REM python.exe create_datasets.py --prefix %data_prefix% --include RSRQ SNR NRxRSRP State NetworkMode
 cd ..\training_models
-@echo on
-REM python.exe train_model.py --prefix %run_prefix% --model "baseline"
-REM python.exe train_model.py --prefix %run_prefix% --model "low"
-REM python.exe train_model.py --prefix %run_prefix% --model "medium"
-REM python.exe train_model.py --prefix %run_prefix% --model "high"
-python.exe train_model.py --prefix %run_prefix% --model "classifier"
-@echo off
+python.exe train_model.py --prefix %run_prefix% --model "baseline" --data_prefix %data_prefix% --size_constraint 3
+python.exe train_model.py --prefix %run_prefix% --model "high" --data_prefix %data_prefix% --size_constraint 3
+python.exe train_model.py --prefix %run_prefix% --model "medium" --data_prefix %data_prefix% --size_constraint 3
+python.exe train_model.py --prefix %run_prefix% --model "low" --data_prefix %data_prefix% --size_constraint 3
+python.exe train_model.py --prefix %run_prefix% --model "classifier" --data_prefix %data_prefix% --size_constraint 3
 cd ..\trained_models
-@echo on
-REM python.exe test_model.py --prefix %run_prefix% --model "baseline"
-python.exe test_model.py --prefix %run_prefix% --model "multiOne"
-python.exe test_model.py --prefix %run_prefix% --model "multiAll"
-
-
-REM THIS TRAINS AND TEST UNIVARIATE
-@echo off
-cd ..\data_transformation
-@echo on
-python.exe create_datasets.py --prefix %univariate_prefix% 
-@echo off
-cd ..\training_models
-@echo on
-python.exe train_model.py --prefix %univariate_prefix% --model "baseline"
-python.exe train_model.py --prefix %univariate_prefix% --model "low"
-python.exe train_model.py --prefix %univariate_prefix% --model "medium"
-python.exe train_model.py --prefix %univariate_prefix% --model "high"
-python.exe train_model.py --prefix %univariate_prefix% --model "classifier"
-@echo off
-cd ..\trained_models
-@echo on
-python.exe test_model.py --prefix %univariate_prefix% --model "baseline"
-python.exe test_model.py --prefix %univariate_prefix% --model "multiOne"
-python.exe test_model.py --prefix %univariate_prefix% --model "multiAll"
+python.exe test_model.py --model_prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+python.exe test_model.py --model_prefix %run_prefix% --model "multiOne" --data_prefix %data_prefix%
+python.exe test_model.py --model_prefix %run_prefix% --model "multiAll" --data_prefix %data_prefix%
