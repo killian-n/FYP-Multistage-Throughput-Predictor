@@ -29,7 +29,6 @@ class DataPreProcessor:
         self.__create_train_test_split = create_train_test_split
         self.__scale_data = scale_data
         self.__imputer = None
-        self._balance = balance
         # Working dataframes
         self.__df = dataframe[include_features+predict+metadata]
         self.__train = None
@@ -41,13 +40,14 @@ class DataPreProcessor:
 
         # Numeric features
         self.__numeric_features = ["SNR", "CQI", "RSSI", "NRxRSRP", \
-            "NRxRSRQ", "ServingCell_Distance", "Speed", "RSRQ", "RSRP", "DL_bitrate", "UL_bitrate"]
+            "NRxRSRQ", "ServingCell_Distance", "Speed", "RSRQ", "RSRP", "DL_bitrate", "UL_bitrate", "State"]
         self.__numeric_features = [i for i in self.__numeric_features if i in include_features and i in self.__numeric_features]
         if use_predict:
             for i in predict:
                 if i not in self.__numeric_features:
                     self.__numeric_features.append(i)
-        
+        if "State" in self.__numeric_features:
+            self.__df["State"] = self.__df["State"].replace({"D": 1, "I": 0})
         # Geological features
         self.__geo_features = ["Longitude", "Latitude", "ServingCell_Lon", "ServingCell_Lat"]
         self.__geo_features = [i for i in self.__geo_features if i in self.__geo_features and i in include_features]
@@ -133,9 +133,6 @@ class DataPreProcessor:
         # Test
         self.__y_test_labels = []
         self.__y_test_labels_sparse = []
-        # Sequence, targets after balancing
-        self.__x_test_balanced = []
-        self.__y_test_balanced = []
 
         if not manual_mode:
             return_unscaled = not self.__scale_data
@@ -166,9 +163,8 @@ class DataPreProcessor:
             self.__y_test_labels = self.create_labels(self.__y_test, sparse=False, scaled=scaled)
             self.__y_train_labels_sparse = self.create_labels(self.__y_train, sparse=True, scaled=scaled)
             self.__y_test_labels_sparse = self.create_labels(self.__y_test, sparse=True, scaled=scaled)
-            if self._balance:
-                self.__x_train_balanced, self.__y_train_labels_balanced = self.balance_labels(self.__x_train, self.__y_train_labels)
-                self.__y_train_balanced, self.__y_train_labels_sparse_balanced = self.balance_labels(self.__y_train, self.__y_train_labels_sparse, sparse=True)
+            self.__x_train_balanced, self.__y_train_labels_balanced = self.balance_labels(self.__x_train, self.__y_train_labels)
+            self.__y_train_balanced, self.__y_train_labels_sparse_balanced = self.balance_labels(self.__y_train, self.__y_train_labels_sparse, sparse=True)
             self.separate_by_label(train=True)
             self.separate_by_label(train=False)
             self.save_scaler()
@@ -578,7 +574,6 @@ class DataPreProcessor:
             self.__x_train_high = high_x
             print("High x train", np.array(self.__x_train_high).shape)
             self.__y_train_high = high_y
-
             self.__class_weights[self.__sparse_label_dict["low"]] = len(self.__y_train)/(3*len(self.__y_train_low))
             self.__class_weights[self.__sparse_label_dict["medium"]] = len(self.__y_train)/(3*len(self.__y_train_medium))
             self.__class_weights[self.__sparse_label_dict["high"]] = len(self.__y_train)/(3*len(self.__y_train_high))
@@ -603,12 +598,12 @@ class DataPreProcessor:
     def get_balanced_train_sequences(self):
         return np.array(self.__x_train_balanced), np.array(self.__y_train_balanced)
 
-    def get_label_predictor_train(self, sparse=False):
+    def get_label_predictor_train(self, sparse=False, upsampled=False):
         if sparse:
-            if self._balance:
+            if upsampled:
                 return np.array(self.__x_train_balanced), np.array(self.__y_train_labels_sparse_balanced, ndmin=2)
             return np.array(self.__x_train), np.array(self.__y_train_labels_sparse, ndmin=2)
-        if self._balance:
+        if upsampled:
             np.array(self.__x_train_balanced), np.array(self.__y_train_labels_balanced, ndmin=2)
         return np.array(self.__x_train), np.array(self.__y_train_labels, ndmin=2)
 
@@ -700,10 +695,13 @@ class DataPreProcessor:
         x, y = self.get_label_predictor_train(sparse=False)
         np.save(train_dir+"{}_classifier_train_x".format(self._name), x)
         np.save(train_dir+"{}_classifier_train_y".format(self._name), y)
-        if self._balance:
-            x, y = self.get_balanced_train_sequences()
-            np.save(train_dir+"{}_balanced_train_x".format(self._name), x)
-            np.save(train_dir+"{}_balanced_train_y".format(self._name), y)
+
+        x, y = self.get_label_predictor_train(sparse=False, upsampled=True)
+        np.save(train_dir+"{}_classifier_balanced_train_x".format(self._name), x)
+        np.save(train_dir+"{}_classifier_balanced_train_y".format(self._name), y)
+        x, y = self.get_balanced_train_sequences()
+        np.save(train_dir+"{}_balanced_train_x".format(self._name), x)
+        np.save(train_dir+"{}_balanced_train_y".format(self._name), y)
         
         # Testing Datasets
         test_dir = config["global"]["TESTING_DATASETS_PATH"]

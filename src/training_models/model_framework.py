@@ -128,3 +128,6 @@ class ModelFramework(ABC):
 
     def set_scaler(self, filepath=""):
         self._scaler = pickle.load(open(filepath, "rb"))
+
+    def set_model_name(self, name):
+        self._model_name = name

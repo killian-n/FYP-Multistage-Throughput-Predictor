@@ -42,6 +42,12 @@ class TrainedFramework(ABC):
     def set_model(self, model):
         self._model = model
         self.set_output_shape()
+
+    def set_model_name(self, name):
+        self._model_name = name
+    
+    def get_model_name(self):
+        return self._model_name
     
     def get_model(self):
         return self._model
@@ -50,7 +56,7 @@ class TrainedFramework(ABC):
         return self._test_x, self._test_y
     
     def get_scaler(self):
-        return
+        return self._scaler
     
     def set_output_shape(self):
         for layer in self._model.layers:

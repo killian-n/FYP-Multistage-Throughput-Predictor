@@ -36,7 +36,7 @@ Looking at figure \ref{fig:dl_acf} which shows the average ACF of the download t
 A selection of different combinations of horizon and history windows were considered to evaluate the impact each has on the throughput horizon predictions. The horizon window is more application dependent. The granularity of data available to us through G-NetTrack Pro is one second. In general more time sensitive applications such as web-conferencing would benefit a smaller horizon window. This incurs the cost of more computational power as the throughput prediction model must be run more frequently. Inversely, less time sensitive applications could use a longer horizon window. For throughput prediction, if the average horizon throughput is the main variable of interest then a longer horizon length may actually benefit predictions as the average will be calculated over a greater number of throughput predictions \cite{raca2019improving}.
 
 \section{Selection of train/test Splits}
-Typical train/test splits divide the dataset in a given ratio, usually 80:20 for train and test respectively. This is difficult to reproduce with this dataset as the dataset is not a single continuous time series but a collection of 135 distinct time series experiments. Train and test can be created by dividing the dataset based on the number of traces however, as seen in \ref{sec:distribution} the traces are of varying length making it difficult to split the dataset based on solo on the count. Instead, division of the traces was viewed an an optimisation problem. For each trace, the number of observations for each class of low, medium and high throughput was calculated. The number of observations of each class will vary based on the chosen horizon length and as such, different choices of horizon length will require a different train and test partition. The output of this process is as follows:
+Typical train/test splits divide the dataset in a given ratio, usually 80:20 for train and test respectively. This is difficult to reproduce with this dataset as the dataset is not a single continuous time series but a collection of 135 distinct time series experiments. Train and test can be created by dividing the dataset based on the number of traces however, as seen in \ref{sec:distribution} the traces are of varying length making it difficult to split the dataset based on solo on the count. Another issue is that the training set must contain an adequate count of examples for all 3 classes, low, medium and high. As the classes are imbalanced, blindly partitioning the dataset based on traces may lead to situations where all examples of a single class ends up in either the training dataset or the testing dataset. This is especially the true for low throughput examples which have the least representation in the dataset. Both the baseline model and the multistage architectures must use the same train and test in order to be comparable. Failure to provide adequate examples of each class in the training data would result in the multistage models performing poorly. Instead, division of the traces was viewed an an optimisation problem. For each trace, the number of observations for each class of low, medium and high throughput was calculated. The number of observations of each class will vary based on the chosen horizon length and as such, different choices of horizon length will require a different train and test partition. The output of this process is as follows:
 \begin{table}[!htb]
   \centering
   \caption{Example of Label Counting Output}
@@ -54,24 +54,22 @@ The class counts per trace were then used to calculate a percentage of the total
 - 80\% of all low samples, 80\% of all medium samples and 80\% of all high samples \\
 - Test would be the remainder i.e 20\% of low, medium and high \\
 
-In practice it is difficult to find a split of traces that achieves the perfect ratio between low/medium/high for train and test. Instead a large number (10000) of potential splits are created and their class \% are measured. The split that is chosen is the train/test split with the lowest sum of differences between \% training low, medium, high, that is to say, train/test split chosen has the closest distribution to the desired distribution outlined above. The preprocessing code provides a summary of the distribution of the train/test split it finds. For example, most of the analysis in this paper focuses on a history window of 10 seconds and a horizon window of 5 seconds. The distribution of the train / test split for this selection is shown in table \ref 
+In practice it is difficult to find a split of traces that achieves the perfect ratio between low/medium/high for train and test. Instead a large number (10000) of potential splits are created and their class \% are measured. The split that is chosen is the train/test split with the lowest sum of differences between \% training low, medium, high, that is to say, train/test split chosen has the closest distribution to the desired distribution outlined above. The preprocessing code provides a summary of the distribution of the train/test split it finds. For example, most of the analysis in this paper focuses on a history window of 10 seconds and a horizon window of 5 seconds. The distribution of the train / test split for this selection is shown in table \ref{tab:train_test_dist}. 
 
 \begin{table}[!htb]
   \centering
   \caption{Train/Test Class Distribution}
   \npdecimalsign{.}
-  \nprounddigits{7}
-  \begin{tabular}{|c|n{2}{7}|n{2}{7}|n{2}{7}|n{2}{7}|}
+  \nprounddigits{5}
+  \begin{tabular}{|n{1}{4}|n{1}{4}|n{1}{4}|n{1}{4}|n{1}{4}|n{1}{4}|n{1}{4}|}
     \hline
-    {Test Set} & {MSE} & {MAE} & {MAPE} & {Time to Predict (ms)} \\
+    {train low} & {train medium} & {train high} & {test low} & {test medium} & {test high} & {distribution diff} \\
     \hline
-	All & 0.003487341 & 0.034651205 & 1.974610253 & 0.166163896\\
-	Low & 0.000380131 & 0.013548465 & 0.678993196 & 0.170406616\\
-	Medium & 0.00075947 & 0.017744765 & 0.902316831 & 0.156551365 \\
-	High & 0.00591402 & 0.050246894 & 2.950865839 & 0.151185317 \\
+	0.8646586591494055 & 0.8362963871178682 & 0.8373981034769589 & 0.1353413408505944 & 0.1637036128821317 & 0.162601896523041 & 0.0567245440630745\\
     \hline
   \end{tabular}
   \npnoround
+  \label{tab:train_test_dist}
 \end{table}
 
 \section{Identifying Bounds for Mutlistage Model Classes}
@@ -80,9 +78,9 @@ Two multistage approaches for modelling throughput prediction were considered in
 
 The choice of the number of bounds (and subsequently models) and how to classify a given sequence of input data is arbitrary. For the purposes of this paper, dividing the data into one of three bounds sufficed. The sequences were divided by horizon download throughput into the three following ranges:
 
-•Low: $ mean[y] < 1Mbps$ \\
+•Low:    $ mean[y] < 1Mbps$ \\
 •Medium: $1Mpbs \leq mean[y] \leq 5Mpbs$ \\
-•High: $ mean[y] > 5Mbps$ \\
+•High:   $ mean[y] > 5Mbps$ \\
 
 For forecasting, Lstm models are typically trained on x, y pairs where x is historic data of the predictor features over the past p seconds and y is the true value of the target variable of the next k seconds. The average download throughput of y was used to classify a given trace as an example of high, medium or low throughput.
 

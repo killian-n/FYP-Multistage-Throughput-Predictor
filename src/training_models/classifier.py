@@ -119,14 +119,17 @@ class ThroughputClassifier(ModelFramework):
             writer = csv.writer(f)
             writer.writerow(self._results)
 
-    def set_class_weights(self, filename=""):
-        if not filename:
-            filename = "class_weights"
-        saved_objects_path = config["global"]["SAVED_OBJECTS_PATH"]
-        if saved_objects_path[-1] not in ["\\", "/"]:
-            saved_objects_path += "/"
-        filepath = saved_objects_path+filename
-        self._class_weights = pickle.load(open(filepath, "rb"))
+    def set_class_weights(self, filename="", set_as_none=False):
+        if set_as_none:
+            self._class_weights=None
+        else:
+            if not filename:
+                filename = "class_weights"
+            saved_objects_path = config["global"]["SAVED_OBJECTS_PATH"]
+            if saved_objects_path[-1] not in ["\\", "/"]:
+                saved_objects_path += "/"
+            filepath = saved_objects_path+filename
+            self._class_weights = pickle.load(open(filepath, "rb"))
 
 
 

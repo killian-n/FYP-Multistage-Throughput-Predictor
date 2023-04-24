@@ -17,19 +17,22 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a model on pre-created datasets.')
 
     # Add the arguments to the argument parser
-    parser.add_argument('--prefix', type=str, help='A file prefix for saved .hdf5 file of the selected model.')
+    parser.add_argument('--model_prefix', type=str, help='A file prefix for saved .hdf5 file of the selected model.')
     parser.add_argument('--model', type=str, help='Select which model to train. Values can be one of: [multiOne, mutliAll, baseline]')
     parser.add_argument('--data_prefix', type=str,
                          help="Optional argument. The file prefix of the saved train and test datasets found in Datasets directory. \n Assumed to be same as prefix if not provided")
-
+    parser.add_argument("--prefix", type=str, help="Optional argument. Sets the prefix for the saved models and outputs.")
+    parser.add_argument('--use_balanced', type=bool, help="Optional argument for baseline or classifier. Will use respective model trained on balanced data if exists. Default is False")
     # Parse the command-line arguments
     args = parser.parse_args()
 
     # Access the values of the arguments
-    model_prefix = args.prefix
+    model_prefix = args.model_prefix
     model_to_test = args.model
     data_prefix = args.data_prefix
-
+    use_balanced = args.use_balanced
+    prefix = args.prefix
+    
     if not model_prefix:
         print("Please provide a str prefix for the filename of the saved model and its datasets.")
         sys.exit(1)
@@ -46,6 +49,8 @@ if __name__ == "__main__":
         parser.print_help()
         sys.exit(1)
 
+    if not prefix:
+        prefix = model_prefix
 
     ###########
     # DATASETS
@@ -71,9 +76,13 @@ if __name__ == "__main__":
     high_test_y = np.load("{}{}_high_test_y.npy".format(test_dir_path, data_prefix))
 
     if model_to_test == "baseline":
-        model = TrainedBaseline("{}_baseline".format(model_prefix))
+        model = TrainedBaseline("{}_baseline".format(prefix))
         model.set_scaler("{}{}_scaler.sav".format(saved_objects_dir_path, data_prefix))
-        model.set_model(tf.keras.models.load_model("{}{}_baseline.hdf5".format(saved_objects_dir_path, model_prefix)))
+        if use_balanced:
+            model.set_model(tf.keras.models.load_model("{}{}_up_baseline.hdf5".format(saved_objects_dir_path, model_prefix)))
+            model.set_model_name("{}_up_baseline".format(prefix))
+        else:
+            model.set_model(tf.keras.models.load_model("{}{}_baseline.hdf5".format(saved_objects_dir_path, model_prefix)))
     
     else:
         #Classifier
@@ -81,18 +90,21 @@ if __name__ == "__main__":
         classifier_test_y = np.load("{}{}_classifier_test_y.npy".format(test_dir_path, data_prefix))
 
         if model_to_test == "multiOne":
-            model = MultistageOne("{}_multiOne".format(model_prefix))
+            model = MultistageOne("{}_multiOne".format(prefix))
         else: 
-            model = MultistageAll("{}_multiAll".format(model_prefix))
+            model = MultistageAll("{}_multiAll".format(prefix))
 
         model.set_classifier_scaler("{}{}_scaler.sav".format(saved_objects_dir_path, data_prefix))
-        model.set_low_scaler("{}{}_low_scaler.sav".format(saved_objects_dir_path, data_prefix))
-        model.set_medium_scaler("{}{}_medium_scaler.sav".format(saved_objects_dir_path, data_prefix))
-        model.set_high_scaler("{}{}_high_scaler.sav".format(saved_objects_dir_path, data_prefix))
-        model.set_low_model("{}{}_low.hdf5".format(saved_objects_dir_path, data_prefix))
-        model.set_medium_model("{}{}_medium.hdf5".format(saved_objects_dir_path, data_prefix))
-        model.set_high_model("{}{}_high.hdf5".format(saved_objects_dir_path, data_prefix))
-        model.set_classifier("{}{}_classifier.hdf5".format(saved_objects_dir_path, data_prefix))
+        model.set_low_scaler("{}{}_low_scaler.sav".format(saved_objects_dir_path, model_prefix))
+        model.set_medium_scaler("{}{}_medium_scaler.sav".format(saved_objects_dir_path, model_prefix))
+        model.set_high_scaler("{}{}_high_scaler.sav".format(saved_objects_dir_path, model_prefix))
+        model.set_low_model("{}{}_low.hdf5".format(saved_objects_dir_path, model_prefix))
+        model.set_medium_model("{}{}_medium.hdf5".format(saved_objects_dir_path, model_prefix))
+        model.set_high_model("{}{}_high.hdf5".format(saved_objects_dir_path, model_prefix))
+        if use_balanced:
+            model.set_classifier("{}{}_up_classifier.hdf5".format(saved_objects_dir_path, model_prefix))
+        else:
+            model.set_classifier("{}{}_classifier.hdf5".format(saved_objects_dir_path, model_prefix))
         model.set_classifier_test(classifier_test_x, classifier_test_y)
         
 

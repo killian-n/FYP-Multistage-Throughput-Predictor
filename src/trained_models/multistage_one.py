@@ -103,6 +103,18 @@ class MultistageOne:
         self.save_output(predicted_y, self._model_name+"_predicted_y")
         self.save_output(self._test_y, self._model_name+"_true_y")
 
+        low_test_x, low_test_y = self._low_tp_model.get_test()
+        low_predicted = self.predict(low_test_x)
+        self.save_output(low_predicted, self._model_name+"_ms_low_predicted_y")
+        
+        medium_test_x, medium_test_y = self._medium_tp_model.get_test()
+        medium_predicted = self.predict(medium_test_x)
+        self.save_output(medium_predicted, self._model_name+"_ms_medium_predicted_y")
+
+        high_test_x, high_test_y = self._high_tp_model.get_test()
+        high_predicted = self.predict(high_test_x)
+        self.save_output(high_predicted, self._model_name+"_ms_high_predicted_y")
+
     def get_performance_metrics(self):
         return self._results
     

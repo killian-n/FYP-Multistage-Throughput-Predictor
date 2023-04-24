@@ -146,3 +146,39 @@ abstract = {In most situations, simple techniques for handling missing data (suc
   pages={1157--1182},
   year={2003}
 }
+
+@article{10.1145/3506695,
+author = {Liao, Lizhi and Li, Heng and Shang, Weiyi and Ma, Lei},
+title = {An Empirical Study of the Impact of Hyperparameter Tuning and Model Optimization on the Performance Properties of Deep Neural Networks},
+year = {2022},
+issue_date = {July 2022},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {31},
+number = {3},
+issn = {1049-331X},
+url = {https://doi.org/10.1145/3506695},
+doi = {10.1145/3506695},
+abstract = {Deep neural network (DNN) models typically have many hyperparameters that can be configured to achieve optimal performance on a particular dataset. Practitioners usually tune the hyperparameters of their DNN models by training a number of trial models with different configurations of the hyperparameters, to find the optimal hyperparameter configuration that maximizes the training accuracy or minimizes the training loss. As such hyperparameter tuning usually focuses on the model accuracy or the loss function, it is not clear and remains under-explored how the process impacts other performance properties of DNN models, such as inference latency and model size. On the other hand, standard DNN models are often large in size and computing-intensive, prohibiting them from being directly deployed in resource-bounded environments such as mobile devices and Internet of Things (IoT) devices. To tackle this problem, various model optimization techniques (e.g., pruning or quantization) are proposed to make DNN models smaller and less computing-intensive so that they are better suited for resource-bounded environments. However, it is neither clear how the model optimization techniques impact other performance properties of DNN models such as inference latency and battery consumption, nor how the model optimization techniques impact the effect of hyperparameter tuning (i.e., the compounding effect). Therefore, in this paper, we perform a comprehensive study on four representative and widely-adopted DNN models, i.e., CNN image classification, Resnet-50, CNN text classification, and LSTM sentiment classification, to investigate how different DNN model hyperparameters affect the standard DNN models, as well as how the hyperparameter tuning combined with model optimization affect the optimized DNN models, in terms of various performance properties (e.g., inference latency or battery consumption). Our empirical results indicate that tuning specific hyperparameters has heterogeneous impact on the performance of DNN models across different models and different performance properties. In particular, although the top tuned DNN models usually have very similar accuracy, they may have significantly different performance in terms of other aspects (e.g., inference latency). We also observe that model optimization has a confounding effect on the impact of hyperparameters on DNN model performance. For example, two sets of hyperparameters may result in standard models with similar performance but their performance may become significantly different after they are optimized and deployed on the mobile device. Our findings highlight that practitioners can benefit from paying attention to a variety of performance properties and the confounding effect of model optimization when tuning and optimizing their DNN models.},
+journal = {ACM Trans. Softw. Eng. Methodol.},
+month = {apr},
+articleno = {53},
+numpages = {40},
+keywords = {DNN model optimization, hyperparameter tuning, Deep neural network, DNN model performance}
+}
+
+@article{bergstra2012random,
+  title={Random search for hyper-parameter optimization.},
+  author={Bergstra, James and Bengio, Yoshua},
+  journal={Journal of machine learning research},
+  volume={13},
+  number={2},
+  year={2012}
+}
+
+@misc{omalley2019kerastuner,
+    title        = {KerasTuner},
+    author       = {O'Malley, Tom and Bursztein, Elie and Long, James and Chollet, Fran\c{c}ois and Jin, Haifeng and Invernizzi, Luca and others},
+    year         = 2019,
+    howpublished = {\url{https://github.com/keras-team/keras-tuner}}
+}
