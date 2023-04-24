@@ -1,3 +1,140 @@
 \chapter{Results}
 \label{chp:experiments} 
-\section{Univariate Models}
+\section{Constricted Throughput Models Vs Baseline Model}
+In order to prove the validity of constructing multistage models from a collection of models trained on constricted throughput classes (low, medium and high), we first proved that the models trained exclusively on examples of a respective throughput class perform significantly better than a baseline model trained on examples from all classes.
+
+Figure \ref{fig:std_all_low_resids_outliers} shows the residuals of the baseline model vs a model trained exclusively on low throughput examples on a test set consisting of low throughput examples. The objective of this plot is to show the difference in how the two models deal with outliers. The baseline model heavily overestimated the download throughput horizon in outlier situations. For applications such as video streaming the baseline model would cause the user to experience buffering, as the application expects considerably more throughput than what is available to it. Figure \ref{fig:std_all_low_resids} shows the distribution of residuals between the 5th and 95th percentiles. The baseline model overestimates more frequently as shown by the larger bias. It is also less accurate in predicting throughput in these low throughput scenarios compared to low only model as seen by the larger spread observed in the boxplots at each horizon time step.
+
+We then considered the absolute percentage error of the predictions. The results are shown in \ref{fig:std_all_low_ape_outliers} and \ref{fig:std_all_low_ape}. The low only model shows a considerable performance improvement over the baseline model in both the handling of outliers, as well as in the general case for 90\% of the data. The table \ref{tab:std_all_low} provides the summary statistics for this analysis.
+
+\begin{figure}[h]
+\includegraphics[scale=0.7]{Images/All Data On low Test Set.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_low_resids_outliers}
+\end{figure}
+
+\begin{figure}[h]
+\includegraphics[scale=0.7]{Images/All Data On low Test Set no Outliers.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_low_resids}
+\end{figure}
+
+\begin{figure}[h]
+\includegraphics[scale=0.7]{Images/Ape of All Data On low Test Set.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_low_ape_outliers}
+\end{figure}
+
+\begin{figure}[h]
+\includegraphics[scale=0.7]{Images/Ape of All Data On low Test Set no Outliers.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_low_ape}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+{Model} & {Mean Resids (Mbps)} & {Resids std (Mbps)} & {MAPE} & {MSE (Mbps)} & {MAE (Mbps)}\\
+\hline
+Baseline & -0.672 & 1.425 & 674.087 & 2.482 & 0.777\\
+\hline
+low Only & -0.042 & 0.396 & 185.417 & 0.159 & 0.285\\
+\hline
+\end{tabular}
+\label{tab:std_all_low}
+\end{table}
+
+\newpage
+We expected similar results in the medium throughput scenario as class membership for medium is also relatively restrictive as shown in \ref{sec:bounds}. Observations were in line with the expectation, figures \ref{fig:std_all_medium_resids_outliers}, \ref{fig:std_all_medium_resids}, \ref{fig:std_all_medium_ape_outliers}, \ref{fig:std_all_medium_ape} align with what was confirmed in the low throughput case. The difference between the baseline and medium only model was lessened compared to low scenario due to the less strict restrictions for a throughput example to be classified as medium, as opposed to low. The table \ref{tab:std_all_medium} provides summary statistics for the medium case. Again we observed the decreased bias, -0.03 vs -0.436 Mbps and improved relative performance with a decrease of 65.384 in MAPE compared to the baseline model.
+
+\begin{figure}[h]
+\includegraphics[scale=0.7]{Images/All Data On medium Test Set.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_medium_resids_outliers}
+\end{figure}
+
+\begin{figure}[h]
+\includegraphics[scale=0.7]{Images/All Data On medium Test Set no Outliers.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_medium_resids}
+\end{figure}
+
+\begin{figure}[h]
+\includegraphics[scale=0.7]{Images/Ape of All Data On medium Test Set.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_medium_ape_outliers}
+\end{figure}
+
+\begin{figure}[h]
+\includegraphics[scale=0.7]{Images/Ape of All Data On medium Test Set no Outliers.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_medium_ape}
+\end{figure}
+
+\begin{table}[!htb]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+{Model} & {Mean Resids (Mbps)} & {Resids std (Mbps)} & {MAPE} & {MSE (Mbps)} & {MAE (Mbps)}\\
+\hline
+Baseline & -0.436 & 2.171 & 198.599 & 4.903 & 1.386\\
+\hline
+medium Only & -0.03 & 1.44 & 133.215 & 2.074 & 1.061\\
+\hline
+\end{tabular}
+\label{tab:std_all_medium}
+\end{table}
+
+\newpage
+Finally we look at the model trained exclusively on high throughput examples vs the baseline. This comparison is the one in which one would most likely observe little to no difference in model performance. 
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+{Model} & {Mean Resids (Mbps)} & {Resids std (Mbps)} & {MAPE} & {MSE (Mbps)} & {MAE (Mbps)}\\
+\hline
+Baseline & 1.735 & 6.587 & 97.855 & 46.398 & 4.432\\
+\hline
+high Only & 0.991 & 6.636 & 104.708 & 45.015 & 4.281\\
+\hline
+\end{tabular}
+\label{tab:std_all_high}
+\end{table}
+
+\begin{figure}[h]
+\includegraphics[scale=0.7]{Images/All Data On high Test Set.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_high_resids_outliers}
+\end{figure}
+
+\begin{figure}[h]
+\includegraphics[scale=0.7]{Images/All Data On high Test Set no Outliers.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_high_resids}
+\end{figure}
+
+\begin{figure}[h]
+\includegraphics[scale=0.7]{Images/Ape of All Data On high Test Set.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_high_ape_outliers}
+\end{figure}
+
+\begin{figure}[h]
+\includegraphics[scale=0.7]{Images/Ape of All Data On high Test Set no Outliers.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_high_ape}
+\end{figure}

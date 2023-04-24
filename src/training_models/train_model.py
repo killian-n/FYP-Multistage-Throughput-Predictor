@@ -22,7 +22,7 @@ if __name__ == "__main__":
                          help="Optional argument. The file prefix of the saved train and test datasets found in Datasets directory. \n Assumed to be same as prefix if not provided")
     parser.add_argument('--use_balanced', type=bool, help="Optional argument. Specifies if baseline or classifier model should be trained on a balanced dataset. Default is False.")
     parser.add_argument('--standardise_models', type=bool, help="Optional argument. Specifies whether all models should use the same parameter design. Default is True")
-    parser.add_argument('--size_constraint', type=int, help="Optional argument. Current options include [3, 1.5]")
+    parser.add_argument('--size_constraint', type=int, help="Optional argument. Current options include [3, 15]")
     # Parse the command-line arguments
     args = parser.parse_args()
 
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     if not size_constraint:
         size_constraint=0
 
-    if size_constraint not in [0,3,1.5]:
+    if size_constraint not in [0,3,15]:
         size_constraint=0
 
     if standardise is None:
@@ -65,7 +65,8 @@ if __name__ == "__main__":
 
     model_name = model_prefix + "_" + model_to_train
     if model_to_train == "baseline":
-        if standardise:
+        if standardise or size_constraint==15:
+            print("size constraint 1_5Mb")
             model = StandarizedBaseline(model_name=model_name)
         elif size_constraint==3:
             model = Baseline3Mb(model_name=model_name)
@@ -79,7 +80,7 @@ if __name__ == "__main__":
     elif model_to_train == "low":
         if standardise:
             model = standardizedMultistageRegression(model_name=model_name)
-        elif size_constraint==1.5:
+        elif size_constraint==15:
             model = MultistageRegression1_5Mb(model_name=model_name)
         elif size_constraint==3:
             model = MultistageRegression3Mb(model_name=model_name)
@@ -89,7 +90,7 @@ if __name__ == "__main__":
     elif model_to_train == "medium":
         if standardise:
             model = standardizedMultistageRegression(model_name=model_name)
-        elif size_constraint==1.5:
+        elif size_constraint==15:
             model = MultistageRegression1_5Mb(model_name=model_name)
         elif size_constraint==3:
             model = MultistageRegression3Mb(model_name=model_name)
@@ -99,7 +100,7 @@ if __name__ == "__main__":
     elif model_to_train == "high":
         if standardise:
             model = standardizedMultistageRegression(model_name=model_name)
-        elif size_constraint==1.5:
+        elif size_constraint==15:
             model = MultistageRegression1_5Mb(model_name=model_name)
         elif size_constraint==3:
             model = MultistageRegression3Mb(model_name=model_name)
@@ -112,7 +113,7 @@ if __name__ == "__main__":
             saved_objects_path += "/"
         if standardise:
             model = standardizedClassifierModel(model_name=model_name)
-        elif size_constraint==1.5:
+        elif size_constraint==15:
             model = ClassifierModel1_5Mb(model_name=model_name)
         elif size_constraint==3:
             model = ClassifierModel3Mb(model_name=model_name)
