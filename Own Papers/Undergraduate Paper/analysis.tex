@@ -1,8 +1,140 @@
-\chapter{Data Transformation}
-This section outlines the data preprocessing steps taken in our analysis. Various combinations of preprocessing steps were considered in this paper to explore the effect of the choice of preprocessing step has on the single model vs multistage question. This section provides an over view of what steps could be taken as well has how one would go about it. All results presented in the later \ref{chp:experiments} will include a description of the preprocessing choices made.
+\chapter{Problem Analysis}
+Accurate throughput prediction in wireless networks is inherently difficult due to the highly dynamic nature of wireless cellular networks. Given the data made available by the dataset used in this project, there were still a number of challenges that had be solved before any prediction model could be considered. This section outlines the dataset, and the understanding gleaned from it and applies this understanding to the inherent challenges faced in fitting a deep learning based throughput predictor.
+
+\section{Outline of the Dataset}
+The dataset used in this paper was collected by researchers in University College Cork in and around the greater Cork City area. Data was collected using an Android network monitoring application, G-NetTrack Pro. Apple devices currently do not have any equivalent application for collecting cellular network analytics. The dataset is a collection of 135 different traces approximately 15 minutes in length on average. Traces were collected by the UCC researchers under a number of different movement patterns. The traces are divided based on the following movement patterns:
+
+•Static: The trace was collected while the mobile devices location remained fixed. This is characteristic of a common use case for mobile devices such as watching video while seated at a desk. Such a use case presents the best case scenario for a cellular network as the connection will experience low variability in its stability. \\
+•Car: The trace was collected while travelling in Cork city and its surrounding suburbs by car. \\
+•Train: The trace was collected while travelling by train. These traces contain a mix of both 4G and 3G as availability for 4G networks was in urban areas only at the time these experiments took place. \\
+•Bus: Traces collected while using public transport around Cork City. \\
+•Pedestrian: Traces collected while walking around Cork City center using different routes. \\
+
+Traces were collected at a variety of times on both weekdays and weekends in order to provide adequate depiction of congestion patterns. The dataset includes of a number of physical layer metrics, as well has GPS metrics and the upload and download bitrate. The following description of the metrics collected was taken directly from the paper \cite{dataset} written by the researchers involved in the construction of this dataset. For a more in depth understanding of the dataset I recommend reading their paper. All credit goes to them for the following description of the metrics:
+
+•Timestamp: timestamp of sample \\
+•Longitude and Latitude: GPS coordinates of mobile device \\
+•Velocity: velocity in kph of mobile device \\ 
+•Operatorname: cellular operator name (anonymised) \\
+•CellId: Serving cell for mobile device \\
+•NetworkMode: mobile communication standard (2G/3G/4G) \\
+•RSRQ: value for RSRQ. RSRQ Represents a ratio between RSRP and Received Signal Strength Indicator (RSSI). Signal strength (signal quality) is measured across all resource elements (RE), including interference from all sources (dB). \\
+•RSRP: value for RSRP. RSRP Represents an average power over cell-specific reference symbols carried inside distinct RE. RSRP is used for measuring cell signal strength/coverage and therefore cell selection (dBm). \\
+•RSSI: value for RSSI. RSSI represents a received power (wide-band) including a serving cell and interference and noise from other sources. RSRQ, RSRP and RSSI are used for measuring cell strength/coverage and therefore cell selection(handover) (dBm)0\\
+•SNR: value for signal-to-noise ratio (dB). \\
+•CQI: value for CQI of a mobile device. CQI is a feedback provided by UE to eNodeB. It indicates data rate that could be transmitted over a channel (highest MCS with a BLER probability less than 10\%), as the function of SINR and UE’s receiver characteristics. Based on UE’s prediction of the channel, eNodeB selects an appropriate modulation scheme and coding rate. \\
+•DL\_bitrate: download rate measured at the device (application layer) (kbit/s) \\
+•UL\_bitrate: uplink rate measured at the device (application layer) (kbit/s) \\
+•State: state of the download process. It has two values, either I (idle, not downloading) or D (downloading) \\
+•NRxRSRQ \& NRxRSRP: RSRQ and RSRP values for the neighbouring cell. \\
+•Cell\_Longitude \& Cell\_Latitude: GPS coordinates of serving eNodeB. We use OpenCelliD4, the largest community open database providing GPS coordinates of cell towers. \\
+•Distance: distance between the serving cell and mobile device in metres.
+
+\newpage
+\section{Considerations of the Dataset}
+
+As the dataset is a collection of separate traces (experiments), this must be taken into account when constructing train and test splits. The entire dataset cannot be viewed as a series of disconnected time series as traces start from different physical locations, run for different lengths of time and use the same workload as a starting point for measuring network data. As such special care must be taken in order to ensure proper construction of train-test sequences.  
+
+The dataset contains considerable missing values for some network features such as NRxRSRP \& NRxRSRQ. Lstm based machine learning techniques require complete data. As such imputation had to be carried out to fill in these gaps. There are various methods of imputation such as mean imputation, max or min imputation, K nearest neighbours (knn) based imputation \cite{batista2002study} methods and more. Some of these methods were considered in this project but it is important to note that no imputation method is perfect. Understanding of the missingness observed in the data may lead to choosing one method over the other. 
+
+Methods like knn imputation also require considerable computational power \& space in memory compared to other more simple methods. This limits the usefulness of such a method to the training phase of a throughput predictor only. Knn or other complex imputation methods might not be viable for deployment directly on the mobile device due to the space and computational constraints of mobile devices. Edge computing would allow for more complicated imputation methods however there is also a time penalty incurred for utilising more complex methods.
+
+Some features collected are not reported directly by the G-NetTrack Pro such as cell tower location data. As such these features were excluded from consideration in this project. If such information was made more readily available to mobile devices in the future it may prove useful in throughput prediction applications however this is outside the scope of the project.
+
+While this dataset is robust in its construction and depiction of typical mobile communication system scenarios, it is not universal. Mobile network infrastructure implementations vary heavily by location. This dataset contains a mix of 2G/3G/4G networks. Older wireless communication technologies have different network environment distributions. As technology continues to progress the models will suffer from distribution shift. 
+\newpage
+\section{Identifying Missing Values}
+\label{sec:missingness}
+Firstly we aimed to understand the nature of missing values included in the dataset. The models considered in this paper require complete data for training. Understanding the nature of missing values in the dataset is vital in the process of selecting methods of imputation\cite{DONDERS20061087}. From figure \ref{fig:missing_bar} we observed that physical layer features SNR and CQI were unreported in approximately 30\% of sample observations with RSSI being unreported in 37\%. Cell tower related features also exhibited missing values in approximately 30\% of sample points. The degree of missingness  rules out excluding observations that containing missing values from consideration.
+
+\begin{figure}[H]
+\includegraphics[scale=0.3]{Images/missing_bar.png}
+\centering
+\title{Bar Chart of Missing Values}
+\caption{Bar chart showing the total number of missing values for each feature over all traces.}
+\label{fig:missing_bar}
+\end{figure}
+
+We then checked for correlation between observations of missing values in each column. From Figure \ref{fig:missing_heatmap} we observed a strong correlation between when the mobile device failed to report a value for the physical layer features RSSI, CQI and SNR. Geo-location data for the serving cell tower also exhibits strong positive correlation with the physical layer features. NRxRSRQ \& NRxRSRP show moderate negative correlation with for missing values with the previously mentioned features. Figure \ref{fig:missing_matrix} provides an alternative way to view these relations.
+
+\begin{figure}[H]
+\includegraphics[scale=0.3]{Images/missing_heatmap.png}
+\centering
+\title{Correlation of Observed Missing Values}
+\caption{Correlation Heatmap for Missing values}
+\label{fig:missing_heatmap}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[scale=0.3]{Images/missing_matrix.png}
+\centering
+\title{Visualisation of the Datasets Missing Values}
+\caption{White regions indicate a missing value for that row. Diagram was sorted by RSSI to group missing rows together.}
+\label{fig:missing_matrix}
+\end{figure}
+
+From this brief analysis we can conclude that the majority of the missingness observed in the dataset is MNAR (missing not at random). Attempting to impute these missing values using simple imputation methods such as mean imputation would have introduced bias into the analysis \cite{DONDERS20061087}. We concluded that figure \ref{fig:missing_matrix} identifies a reasonable cause of the missing entries. The strong positive correlation between missing values in physical layer features and the geo-location features of the serving cell suggest that the mobile device is on the edge of the current serving cell's range. This hypothesis is further reinforced by the negative correlation observed with the missing entries in neighbouring tower's physical layer features. The negative correlation suggests that neighbouring towers are more likely to be reporting values for RSRP and RSRQ when the current cell tower is not reporting values for CQI, SNR, RSSI and its geo-location data. This would make sense if the mobile device is moving into the range of a neighbouring cell tower. Assuming this hypothesis were true, it would help to inform the selection of adequate methods of imputation for each feature. This is considered in the later section \ref{sec:imputation}.
+
+\section{Distribution of Features \& Outlier Detection}
+\label{sec:dist_of_features}
+The distribution of Dl\_bitrate values across all traces is shown in \ref{tab:dl_dist} with \ref{fig:dl_hist} showing the distribution of the majority of observations.
+
+\begin{table}[!htb]
+  \centering
+  \caption{Distribution Statistics of Dl\_bitrate in Mbps}
+  \begin{tabular}{|c|c|c|c|}
+    \hline
+    Mean & Standard Dev & Median & Range \\
+    \hline
+   10.57 & 13.82 & 5.24 & [0,168.96] \\
+    \hline
+  \end{tabular}
+  \label{tab:dl_dist}
+\end{table}
+
+\begin{figure}[H]
+\includegraphics[scale=0.7]{Images/Histogram of DL_throughput.png}
+\centering
+\caption{Distribution of observations of download throughput over all traces}
+\label{fig:dl_hist}
+\end{figure}
+
+
+To show the contribution of movement patterns to the variability observed in wireless cellular network we can look at the summary statistics shown in \ref{tab:dl_dist_movement}. The "train" movement pattern experienced the lowest mean throughput. This is likely due to the reduced 4G coverage along the train's route. Following this we plotted the duration of each trace and highlighted the mean in \ref{fig:trace_length}. There is one notable outlier amongst traces who's duration is much longer than the average. This trace, trace 116, was collected while travelling by train. Because the experiment runs at least until the download of the control file is complete, it is likely that the low download throughput observed for the train mobility pattern caused this deviation.
+
+\begin{table}[!htb]
+  \centering
+  \caption{Distribution Statistics of Dl\_bitrate (Mbps) per Movement Pattern}
+  \begin{tabular}{|c|c|c|c|c|}
+    \hline
+     Movement Pattern & Mean & Standard Dev & Median & Range \\
+    \hline
+     Static & 10.56 & 16.66 & 3.11 & [0,95.51] \\
+     Car & 13.54 & 14.19 & 9.06 & [0,144.46] \\
+     Pedestrian & 10.73 & 11.79 & 6.36 & [0,77.42] \\
+     Bus & 9.77 & 11.18 & 5.83 & [0,85.81] \\
+     Train & 4.87 & 12.25 & 0.49 & [0,168.96] \\
+    \hline
+  \end{tabular}
+  \label{tab:dl_dist_movement}
+\end{table}
+
+\begin{figure}[H]
+\includegraphics[scale=0.7]{Images/trace_length.png}
+\centering
+\caption{Plot of Trace Durations}
+\label{fig:trace_length}
+\end{figure}
+
+The distributions of all features were checked for normality using the shapiro-wilk normality test \cite{razali2011power}. It was found that no numeric features followed a Gaussian distribution. We then checked for outliers in each feature using the interquartile range method. $X$ is an outlier if:
+\begin{equation}
+X < Q1-1.5\times IQR \quad OR \quad X > Q3+1.5\times IQR
+\end{equation}
+
+A considerable number of outliers were identified in the dataset. Of the 174,523 observations, Dl\_bitrate contained 13,245 outliers. Considering nature of wireless cellular networks outliers are inevitable and as such no strict measures were taken to deal with the outliers identified. It was found the expressing some physical layer features as a weighted exponential mean of the current and previous values improved predictions slightly, and as such this was the only action taken to deal with outliers.
 
 \section{Sequence construction}
-The models were trained on input, target sequences constructed using a rolling window over the observed time series data. Sequences were created on a trace by trace basis, i.e. there is no 1 sequence that contains observations from 2 different traces. A pair of input, target sequences will herein be referred to as a sample observation.
+The models were trained on input, target sequences constructed using a rolling window over the observed time series data. Sequences were created on a trace by trace basis, i.e. there is no 1 sequence that contains observations from 2 different traces.
 
 For a given pair of input and target, the input sequence is the observed values of the predictor features over the past $p$ seconds. The target is the observed $DL\_bitrate$ of the next $k$ seconds. The variables $p$ and $k$ are referred to as the history and horizon window respectively. A single input sequence takes the shape of a [n x f] matrix where f is the no of features used to predict the target. A single target sequence takes the shape of a [k x 1] matrix as we are only interested in predicting $DL\_bitrate$. For example in the univariate case we used a history window of 10 seconds, a horizon window of 5 seconds. Previous values of $DL\_bitrate$ were used to predict the throughput horizon. E.g.
 \begin{equation}
@@ -24,7 +156,7 @@ A typical input for an Lstm model used in forecasting takes the shape of: $[ n, 
 
 There are many methods for identifying the optimal length of the horizon and history windows. Well studied methods such as the ACF (auto correlation function) or PACF (partial auto correlation function) \cite{10.2307/2958346} are useful for identifying temporal dependencies in the univariate case. The multivariate case is more complex as the target depends not only on previous values of itself, but previous values of other features. Still ACF provided a useful insight into the choices of history windows to consider. An ACF of <0.4 indicates that including values at the time lag does not contribute greatly to predicting the current value. An ACF >0.8 indicates that a particular lag is very relavant when predicting the current and future value of a metric.
 
-Looking at figure \ref{fig:dl_acf} which shows the average ACF of the download throughput over the previous minute we observed that significant contributions to the prediction of current values falls off after 26 seconds. The red shaded region shows the standard deviation of the ACF observed over all traces. Intuitively this also suggests that for a horizon window of 5 seconds, 21 seconds would be an adequate maximum bound to consider for the history window. 
+Looking at figure \ref{fig:dl_acf} which shows the average ACF of the download throughput over the previous minute we observed that significant contributions to the prediction of current values falls off after 26 seconds. The red shaded region shows the standard deviation of the ACF observed over all traces. Intuitively this also suggests that for a horizon window of 5 seconds, 21 seconds would be an adequate maximum bound to consider for the history window.
 
 \begin{figure}[h]
 \includegraphics[scale=0.5]{Images/Average_DL_bitrate_ACF.png}
@@ -33,7 +165,7 @@ Looking at figure \ref{fig:dl_acf} which shows the average ACF of the download t
 \label{fig:dl_acf}
 \end{figure}
 
-A selection of different combinations of horizon and history windows were considered to evaluate the impact each has on the throughput horizon predictions. The horizon window is more application dependent. The granularity of data available to us through G-NetTrack Pro is one second. In general more time sensitive applications such as web-conferencing would benefit a smaller horizon window. This incurs the cost of more computational power as the throughput prediction model must be run more frequently. Inversely, less time sensitive applications could use a longer horizon window. For throughput prediction, if the average horizon throughput is the main variable of interest then a longer horizon length may actually benefit predictions as the average will be calculated over a greater number of throughput predictions \cite{raca2019improving}.
+A selection of different combinations of horizon and history windows were considered to evaluate the impact each has on the throughput horizon predictions, however it was found that longer horizon lengths than 15 seconds caused model performance to decrease. An important note is that the choice of history and horizon window also impacts the choice of model. The model used to test these varying windows was tuned for a window size of 10 for history and 5 for horizon. It is possible that tuning the hyper-parameters for a model with longer windows may lead to increased performance however due to computational limitations this could not be explored within the scope of the project. The horizon window is more application dependent. The granularity of data available to us through G-NetTrack Pro is one second. In general more time sensitive applications such as web-conferencing would benefit a smaller horizon window. This incurs the cost of more computational power as the throughput prediction model must be run more frequently. Inversely, less time sensitive applications could use a longer horizon window. For throughput prediction, if the average horizon throughput is the main variable of interest then a longer horizon length may actually benefit predictions as the average will be calculated over a greater number of throughput predictions \cite{raca2019improving}.
 
 \section{Selection of train/test Splits}
 Typical train/test splits divide the dataset in a given ratio, usually 80:20 for train and test respectively. This is difficult to reproduce with this dataset as the dataset is not a single continuous time series but a collection of 135 distinct time series experiments. Train and test can be created by dividing the dataset based on the number of traces however, as seen in \ref{sec:distribution} the traces are of varying length making it difficult to split the dataset based on solo on the count. Another issue is that the training set must contain an adequate count of examples for all 3 classes, low, medium and high. As the classes are imbalanced, blindly partitioning the dataset based on traces may lead to situations where all examples of a single class ends up in either the training dataset or the testing dataset. This is especially the true for low throughput examples which have the least representation in the dataset. Both the baseline model and the multistage architectures must use the same train and test in order to be comparable. Failure to provide adequate examples of each class in the training data would result in the multistage models performing poorly. Instead, division of the traces was viewed an an optimisation problem. For each trace, the number of observations for each class of low, medium and high throughput was calculated. The number of observations of each class will vary based on the chosen horizon length and as such, different choices of horizon length will require a different train and test partition. The output of this process is as follows:
@@ -72,6 +204,7 @@ In practice it is difficult to find a split of traces that achieves the perfect 
   \label{tab:train_test_dist}
 \end{table}
 
+\newpage
 \section{Identifying Bounds for Mutlistage Model Classes}
 \label{sec:bounds}
 Two multistage approaches for modelling throughput prediction were considered in this paper. Each of the two architectures however share the same base models. Both multistage architectures proposed make use of a simple classifier that aims to predict a horizon throughput as one of 3 distinct situations, low throughput, medium throughput or high throughput. The choice to divide the problem based on the value of the download throughput comes from the fact that traces typically reported throughput above certain bounds (5Mbps, 1Mbps etc) far more often than below them. This imbalance leads to a single stage model frequently overestimating in low/medium throughput situations. Overestimating in these low or medium throughput scenarios leads to a noticeable decrease in the perceived quality of experience in applications such as video streaming \cite{raca2019improving} and is one of the main motivations of the multistage approach. 
@@ -87,6 +220,7 @@ For forecasting, Lstm models are typically trained on x, y pairs where x is hist
 The bounds 1Mbps and 5Mbps were chosen based on domain knowledge. Popular video streaming applications provide guidelines for the required download throughput for given video quality. As of the time of writing, 720p video requires 3Mbps on Netlfix whereas Youtube and Amazon Prime Video require at least 5Mbps of download throughput. While the adoption of AV1 hardware encoding may lower the required bitrate for HD video, use of the codec is still a while off mass market adoption and providers could choose to maintain the current bitrate while providing better quality source content.
 
 \section{Feature Selection}
+\label{sec:feature_selection}
 Feature selection is an important step in any machine learning problem. Good feature selection is known to improve loss, increase runtime performance and improve the understandability of predictions \cite{guyon2003introduction}.
 Feature selection for multivariate time series is still an evolving field. The challenge is that the a selected feature set must capture the correlation between the target variable and predictors as well as between the target variable and lagged values of the predictors.
 
@@ -107,7 +241,7 @@ NetworkMode\_\{X\} is the one-hot-encoded transform of the NetworkMode feature, 
 -RSRQ \\
 
 \newpage
-\begin{figure}[h]
+\begin{figure}[H]
 \includegraphics[scale=0.5]{Images/feature_correlation.png}
 \centering
 \caption{Correlation matrix showing the average correlation between features over all traces}
@@ -134,13 +268,30 @@ The procedure for permutation feature importance is as follows:
 
 The results of this analysis can be seen in figure \ref{fig:feature_importance}. In this case the model relied heavily on the NetworkMode feature. RSRQ was once again important in improving prediction performance. 
 \newpage
-\begin{figure}[h]
-\includegraphics[scale=0.5]{Images/feature_importance.png}
+\begin{figure}[H]
+\includegraphics[scale=0.6]{Images/feature_importance.png}
 \centering
 \caption{Bar Chart showing Difference in Model Performance with Permuted Feature Column.}
 \label{fig:feature_importance}
 \end{figure}
 
-
+\newpage
 \section{Imputation \& Scaling}
-In section \ref{sec:missingness} we observed that the majority of missing values can be categorised as MNAR (missing not at random). 
+\label{sec:imputation}
+In section \ref{sec:missingness} we observed that the majority of missing values can be categorised as MNAR (missing not at random). The following imputation steps were considered:
+
+- SNR: Imputed with the minimum observed value \\
+- CQI: Imputed with the minimum observed value \\
+- RSSI: Imputed with the minimum observed value \\
+- ServingCell\_Lon: Imputed using forward fill \\
+- ServingCell\_Lat: Imputed using forward fill \\
+- ServingCell\_Distance: Imputed using forward fill \\
+- RSRQ: Imputed using KNNImputer(k=5) from sklearn \\
+- RSRP: Imputed using KNNImputer(k=5) from sklearn \\
+- NRxRSRQ: Imputed using KNNImputer(k=5) from sklearn \\
+- NRxRSRP: Imputed using KNNImputer(k=5) from sklearn \\
+
+
+This method of imputation was compared with using the K-nearest-neighbours algorithm on all numeric features and ultimately the choice between these two methods of imputation made little to no difference in the model's performance.
+
+As observed in section \ref{sec:dist_of_features} the distributions of features did not follow a normal distribution. Z-score based scaling works best when the data is already normally distributed. As such we chose to use min-max scaling in the range of (0,1) to preserve the actual feature distributions. Categorical features were one-hot-encoded.

@@ -1,41 +1,60 @@
 \chapter{Results}
 \label{chp:experiments} 
+\section{Testing Framework}
+To properly test the multistage approaches we first had to prove the rational to construct the multistage models based on the division of the range of DL\_bitrate. To do this we first test the individual regression models on their respective test sets and compare this to the baseline model's performance on the same test set. This shows that a model trained on a restricted range will be better at predicting values within that range. We then compare the performance of the multistage one, multistage all and baseline model on the complete test set. The complete test set is the baseline model's test set or the sum of the low, medium and high model's test sets. This shows actual performance of the multistage approaches as test sequences will be passed through the entire multistage frameworks for inference. We then considered the multistage models performance on the low and medium test sets in particular vs the baselines performance to identify in where difference in overall performance stemmed from. Results were calculated on the actual scale of the data in order to improve the understandability. The following metrics were considered in the comparison:
+
+- Mean Squared Error (MSE)\\
+- Mean Absolute Error (MAE)\\
+- Mean Absolute Percent Error (MAPE)\\
+- Residual boxplots \\ 
+- Absolute Percent Error boxplots \\
+
+Relative error metrics such as MAPE are the most important in this application as they take into account that errors in lower throughput situations are more critical than errors in high throughput situations. I.e. A difference of 2Mbps in the prediction vs the true throughput when the predicted value is 152Mbps and the true value is 150Mbps is far less important than a difference in 2Mbps when the predicted throughput is 3Mbps and the true throughput is 1Mbps. All tests were run on the same system. Specs are as follows:
+
+- Cpu : Ryzen 5 1600 (6 cores / 12 threads) \@ 3.6Ghz \\
+- GPU : Gtx 1050ti \\
+- Ram : 32GB cl 3200 \\
+
+\newpage
 \section{Constricted Throughput Models Vs Baseline Model}
-In order to prove the validity of constructing multistage models from a collection of models trained on constricted throughput classes (low, medium and high), we first proved that the models trained exclusively on examples of a respective throughput class perform significantly better than a baseline model trained on examples from all classes.
+\label{sec:initial_hypo}
+In order to prove the validity of constructing multi-stage models from a collection of models trained on constricted throughput classes (low, medium and high), we first proved that the models trained exclusively on examples of a respective throughput class perform significantly better than a baseline model trained on examples from all classes. As such the models considered in this section all share the same hyper-parameters identified from the tuning described in \ref{sec:model_tuning}. The following features were used as inputs for the models in this analysis: DL\_bitrate, RSRQ, RSRP, RSSI, SNR, CQI, State, NetworkMode, Ul\_bitrate, NRxRSRP, NRxRSRQ, Longitude, Latitude
+
+A history window of 10 seconds and a horizon window of 5 seconds were used.
 
 Figure \ref{fig:std_all_low_resids_outliers} shows the residuals of the baseline model vs a model trained exclusively on low throughput examples on a test set consisting of low throughput examples. The objective of this plot is to show the difference in how the two models deal with outliers. The baseline model heavily overestimated the download throughput horizon in outlier situations. For applications such as video streaming the baseline model would cause the user to experience buffering, as the application expects considerably more throughput than what is available to it. Figure \ref{fig:std_all_low_resids} shows the distribution of residuals between the 5th and 95th percentiles. The baseline model overestimates more frequently as shown by the larger bias. It is also less accurate in predicting throughput in these low throughput scenarios compared to low only model as seen by the larger spread observed in the boxplots at each horizon time step.
 
 We then considered the absolute percentage error of the predictions. The results are shown in \ref{fig:std_all_low_ape_outliers} and \ref{fig:std_all_low_ape}. The low only model shows a considerable performance improvement over the baseline model in both the handling of outliers, as well as in the general case for 90\% of the data. The table \ref{tab:std_all_low} provides the summary statistics for this analysis.
 
-\begin{figure}[h]
-\includegraphics[scale=0.7]{Images/All Data On low Test Set.png}
+\begin{figure}[H]
+\includegraphics[scale=0.65]{Images/All Data On low Test Set.png}
 \centering
-\caption{Whiskers depict the 5th and 95th percentiles}
+\caption{Used to show the effect of outliers}
 \label{fig:std_all_low_resids_outliers}
 \end{figure}
 
-\begin{figure}[h]
-\includegraphics[scale=0.7]{Images/All Data On low Test Set no Outliers.png}
+\begin{figure}[H]
+\includegraphics[scale=0.65]{Images/All Data On low Test Set no Outliers.png}
 \centering
 \caption{Whiskers depict the 5th and 95th percentiles}
 \label{fig:std_all_low_resids}
 \end{figure}
 
-\begin{figure}[h]
-\includegraphics[scale=0.7]{Images/Ape of All Data On low Test Set.png}
+\begin{figure}[H]
+\includegraphics[scale=0.65]{Images/Ape of All Data On low Test Set.png}
 \centering
-\caption{Whiskers depict the 5th and 95th percentiles}
+\caption{Used to show the effect of outliers}
 \label{fig:std_all_low_ape_outliers}
 \end{figure}
 
-\begin{figure}[h]
-\includegraphics[scale=0.7]{Images/Ape of All Data On low Test Set no Outliers.png}
+\begin{figure}[H]
+\includegraphics[scale=0.65]{Images/Ape of All Data On low Test Set no Outliers.png}
 \centering
 \caption{Whiskers depict the 5th and 95th percentiles}
 \label{fig:std_all_low_ape}
 \end{figure}
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \begin{tabular}{|c|c|c|c|c|c|}
 \hline
@@ -52,35 +71,35 @@ low Only & -0.042 & 0.396 & 185.417 & 0.159 & 0.285\\
 \newpage
 We expected similar results in the medium throughput scenario as class membership for medium is also relatively restrictive as shown in \ref{sec:bounds}. Observations were in line with the expectation, figures \ref{fig:std_all_medium_resids_outliers}, \ref{fig:std_all_medium_resids}, \ref{fig:std_all_medium_ape_outliers}, \ref{fig:std_all_medium_ape} align with what was confirmed in the low throughput case. The difference between the baseline and medium only model was lessened compared to low scenario due to the less strict restrictions for a throughput example to be classified as medium, as opposed to low. The table \ref{tab:std_all_medium} provides summary statistics for the medium case. Again we observed the decreased bias, -0.03 vs -0.436 Mbps and improved relative performance with a decrease of 65.384 in MAPE compared to the baseline model.
 
-\begin{figure}[h]
-\includegraphics[scale=0.7]{Images/All Data On medium Test Set.png}
+\begin{figure}[H]
+\includegraphics[scale=0.65]{Images/All Data On medium Test Set.png}
 \centering
-\caption{Whiskers depict the 5th and 95th percentiles}
+\caption{Used to show the effect of outliers}
 \label{fig:std_all_medium_resids_outliers}
 \end{figure}
 
-\begin{figure}[h]
-\includegraphics[scale=0.7]{Images/All Data On medium Test Set no Outliers.png}
+\begin{figure}[H]
+\includegraphics[scale=0.65]{Images/All Data On medium Test Set no Outliers.png}
 \centering
 \caption{Whiskers depict the 5th and 95th percentiles}
 \label{fig:std_all_medium_resids}
 \end{figure}
 
-\begin{figure}[h]
-\includegraphics[scale=0.7]{Images/Ape of All Data On medium Test Set.png}
+\begin{figure}[H]
+\includegraphics[scale=0.65]{Images/Ape of All Data On medium Test Set.png}
 \centering
-\caption{Whiskers depict the 5th and 95th percentiles}
+\caption{Used to show the effect of outliers}
 \label{fig:std_all_medium_ape_outliers}
 \end{figure}
 
-\begin{figure}[h]
-\includegraphics[scale=0.7]{Images/Ape of All Data On medium Test Set no Outliers.png}
+\begin{figure}[!htb]
+\includegraphics[scale=0.65]{Images/Ape of All Data On medium Test Set no Outliers.png}
 \centering
 \caption{Whiskers depict the 5th and 95th percentiles}
 \label{fig:std_all_medium_ape}
 \end{figure}
 
-\begin{table}[!htb]
+\begin{table}[H]
 \centering
 \begin{tabular}{|c|c|c|c|c|c|}
 \hline
@@ -95,9 +114,9 @@ medium Only & -0.03 & 1.44 & 133.215 & 2.074 & 1.061\\
 \end{table}
 
 \newpage
-Finally we look at the model trained exclusively on high throughput examples vs the baseline. This comparison is the one in which one would most likely observe little to no difference in model performance. 
+Finally we look at the model trained exclusively on high throughput examples vs the baseline. This comparison is the most likely to show the smallest difference in model performance as membership of the high throughput class is the least restrictive and also most numerous in the dataset. Indeed we observed the two models performing roughly on par with only a difference of roughly 7 in MAPE. The boxplot \ref{fig:std_all_high_ape} shows near identical performance on all horizon time steps.
 
-\begin{table}[h]
+\begin{table}[!htb]
 \centering
 \begin{tabular}{|c|c|c|c|c|c|}
 \hline
@@ -111,30 +130,169 @@ high Only & 0.991 & 6.636 & 104.708 & 45.015 & 4.281\\
 \label{tab:std_all_high}
 \end{table}
 
-\begin{figure}[h]
-\includegraphics[scale=0.7]{Images/All Data On high Test Set.png}
+\begin{figure}[!htb]
+\includegraphics[scale=0.65]{Images/All Data On high Test Set.png}
 \centering
-\caption{Whiskers depict the 5th and 95th percentiles}
+\caption{Used to show the effect of outliers}
 \label{fig:std_all_high_resids_outliers}
 \end{figure}
 
-\begin{figure}[h]
-\includegraphics[scale=0.7]{Images/All Data On high Test Set no Outliers.png}
+\begin{figure}[!htb]
+\includegraphics[scale=0.65]{Images/All Data On high Test Set no Outliers.png}
 \centering
 \caption{Whiskers depict the 5th and 95th percentiles}
 \label{fig:std_all_high_resids}
 \end{figure}
 
-\begin{figure}[h]
-\includegraphics[scale=0.7]{Images/Ape of All Data On high Test Set.png}
-\centering
-\caption{Whiskers depict the 5th and 95th percentiles}
-\label{fig:std_all_high_ape_outliers}
-\end{figure}
-
-\begin{figure}[h]
-\includegraphics[scale=0.7]{Images/Ape of All Data On high Test Set no Outliers.png}
+\begin{figure}[H]
+\includegraphics[scale=0.65]{Images/Ape of All Data On high Test Set no Outliers.png}
 \centering
 \caption{Whiskers depict the 5th and 95th percentiles}
 \label{fig:std_all_high_ape}
 \end{figure}
+
+
+
+
+
+
+
+
+\newpage
+\section{Multistage Vs Baseline}
+Haven proven the rational behind the potential for multi-stage models in throughput prediction we then compared the 2 
+multi-stage models: multi-stage one \& multi-stage all to the baseline (single stage) model. The models used in this analysis are those described in \ref{sec:initial_hypo}. As such the 2 multistage models are considerable larger (approximately 5.9Mb) than the baseline model (approximately 1.48Mb). The aim of this section is to first show that a multistage approach to throughput prediction can compete with a "single stage" approach. Comparison between multistage and a single stage deep model where size in Mb of both approaches is equalised is explored in the later section \ref{sec:size_con_models}.
+
+The residuals (excluding outliers for clarity) on the complete test set (the baseline model's test set) are shown in figure \ref{fig:std_all_data_resids_outliers}. Considering just this boxplot, one might conclude that the multistage approaches offer no meaningful advantage over a single model. However, as previously discussed, relative error measures such as MAPE are a more telling metric of actual real-world performance differences. Looking at figure \ref{fig:std_all_data_ape_outliers} we observe a notable decrease in the 95th percentile in absolute percentage error for the multstage models compared to the baseline model. The multistage one model in particular shows improved performance vs the baseline. The table \ref{tab:std_all_data_tab} compiles the summary statistics of this analysis. Both multistage models provided a considerable decrease in MAPE compared to the baseline model. The area where the largest's impact was observed was specifically on cases of low throughput. In \ref{fig:ms_std_all_data_ape_outliers} we observe the considerable difference in the distribution of absolute percentage error values of the predictions across all horizon steps.
+
+\begin{figure}[!htb]
+\includegraphics[scale=0.65]{Images/All Data On All Test Data no Outliers.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_data_resids_outliers}
+\end{figure}
+
+\begin{figure}[!htb]
+\includegraphics[scale=0.65]{Images/Ape of All Data On All Test Data no Outliers.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:std_all_data_ape_outliers}
+\end{figure}
+
+\begin{table}[!htb]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+{Model} & {Mean Resids (Mbps)} & {Resids std (Mbps)} & {MAPE} & {MSE (Mbps)} & {MAE (Mbps)}\\
+\hline
+Baseline & 0.7 & 5.145 & 221.605 & 26.966 & 2.935\\
+\hline
+Multistage One & 0.505 & 5.212 & 184.644 & 27.421 & 2.942\\
+\hline
+Multistage All & 0.583 & 5.18 & 196.031 & 27.169 & 2.915\\
+\hline
+\end{tabular}
+\label{tab:std_all_data_tab}
+\end{table}
+
+\begin{figure}[!htb]
+\includegraphics[scale=0.65]{Images/MS APE of All Data On low Test Set no Outliers.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:ms_std_all_data_ape_outliers}
+\end{figure}
+
+The accuracy of the classifier will have a large impact on the performance of both multistage models. Figure \ref{fig:std_all_data_classifier} show the confusion matrix for the classifier used in both models.Reducing the misclassification rate of low throughput examples as medium is the most likely area to consider for improvement. Many attempts were made to improve the accuracy of the classifier. Training with the classifier with either up-sampled data or the use of class weights showed no discernible difference from run to run variance. Down-sampling was initially tested, however it lead to worse performance on average compared to either weighted classes or up-sampling. Future multistage approaches in this field should explore the use of alternative model types for a classifier to see if any offer a noticeable improvement.
+
+\begin{figure}[H]
+\includegraphics[scale=0.65]{Images/All Data Confusion Matrix.png}
+\centering
+\caption{Accuracy~0.83}
+\label{fig:std_all_data_classifier}
+\end{figure}
+
+
+
+
+\newpage
+\section{Equalised for Model Size}
+\label{sec:size_con_models}
+The multistaqe approach has proven to be effect in reducing the absolute percentage error of throughput predictions. The final consideration for this analysis is that of size contraints. In order for a multistage approach to be viable for consideration, it needs to be comparable in size to a single stage approach. A 5Mb model vs a 1.5Mb model is an unfair comparison in the mobile setting as mobile devices have limited computational power, battery life and memory space. Larger models use more of the available computational resources, take up more space in memory and use more power in general. In this section we explore limiting the total size of the models and compare them against a similarly sized single stage baseline model. Intuitively this means that the individual Lstm models used to construct the "multistage one" and "multistage all" will have less parameters than the model used by the baseline.
+
+Finding the optimal solution for both the multistage models and the baseline models for a restricted hyper-parameter range would require an extensive exploration of the hyper-parameter space via model-tuning. Due to the aforementioned hardware and time limitation in \ref{sec:model_tuning} this is outside of the scope that was able to be covered in this project.
+
+Instead educated adjustments were made to the existing best performing model identified in \ref{sec:model_tuning} in order to reach the desired size. As well as tuning the hyper-parameters of the models, a reduced feature set was also used to achieve the required size models. The features included were those identified as potential good features for predicting the throughput in \ref{sec:feature_selection}. These were:
+
+-DL\_bitrate \\
+-RSRQ \\
+-SNR \\
+-NRxRSRP \\
+-State \\
+-NetworkMode
+
+A target size of 1.5Mb was chosen to compare model performance with similar parameter counts. The choice is arbitrary, however it was decided that the models should no be greater than 5Mb in size.
+
+ Actual sizes varied slightly around the 1.5Mb target however total trainable parameter count fell within 1\% difference for all models. Figures \ref{fig:1_5_resids_outliers} and \ref{fig:1_5_resids} show the residuals of the 1.5Mb models on the entire test set. When comparing the raw residuals, model performance is roughly comparable at this target size, however again differenced can be found in the absolute percentage errors of the models as shown in \ref{fig:1_5_ape}. From the table \ref{tab:1_5_table} we see that the multistage one model provides a measurable improvement over the baseline model in MAPE with a value of 187.894 vs 199.345.
+
+\begin{figure}[H]
+\includegraphics[scale=0.65]{Images/Size Constraint of 1 and a half MB On All Test Data.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:1_5_resids_outliers}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[scale=0.65]{Images/Size Constraint of 1 and a half MB On All Test Data no Outliers.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:1_5_resids}
+\end{figure}
+
+
+\begin{figure}[H]
+\includegraphics[scale=0.65]{Images/Ape of Size Constraint of 1 and a half MB On All Test Data no Outliers.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:1_5_ape}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+{Model} & {Mean Resids (Mbps)} & {Resids std (Mbps)} & {MAPE} & {MSE (Mbps)} & {MAE (Mbps)}\\
+\hline
+Baseline & 0.001 & 5.118 & 199.345 & 26.193 & 2.91\\
+\hline
+Multistage One & -0.176 & 5.193 & 187.894 & 26.999 & 2.953\\
+\hline
+Multistage All & -0.06 & 5.103 & 194.868 & 26.045 & 2.865\\
+\hline
+\end{tabular}
+\label{tab:1_5_table}
+\end{table}
+
+Again performance in low throughput scenarios is of particular interest to us for its correlation with improving the quality of experience for users in many applications. In figure \ref{fig:ms_low_1_5_ape} we observed large reduction in the absolute percentage error for the multistage one model vs the baseline model. Summary statistics for all three models exclusively tested on low throughput examples can be seen in table \ref{tab:ms_low_1_5}.
+
+\begin{figure}[H]
+\includegraphics[scale=0.65]{Images/MS APE of Size Constraint of 1 and a half MB On low Test Set no Outliers.png}
+\centering
+\caption{Whiskers depict the 5th and 95th percentiles}
+\label{fig:ms_low_1_5_ape}
+\end{figure}
+
+\begin{table}[!htb]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+{Model} & {Mean Resids (Mbps)} & {Resids std (Mbps)} & {MAPE} & {MSE (Mbps)} & {MAE (Mbps)}\\
+\hline
+Baseline & -0.158 & 1.415 & 518.546 & 2.028 & 0.641\\
+\hline
+Multistage One & -0.404 & 1.391 & 429.679 & 2.099 & 0.596\\
+\hline
+Multistage All & -0.536 & 1.233 & 498.816 & 1.808 & 0.622\\
+\hline
+\end{tabular}
+\label{tab:ms_low_1_5}
+\end{table}
