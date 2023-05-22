@@ -52,9 +52,8 @@ if __name__ == "__main__":
     train_file_path = "{}{}_{}".format(train_dir_path, data_prefix, model_to_train)
     if model_to_train == "baseline":
         train_file_path = "{}{}".format(train_dir_path, data_prefix)
-    else:
-        train_x = np.load("{}_train_x.npy".format(train_file_path))
-        train_y = np.load("{}_train_y.npy".format(train_file_path))
+    train_x = np.load("{}_train_x.npy".format(train_file_path))
+    train_y = np.load("{}_train_y.npy".format(train_file_path))
 
     test_dir_path = config["global"]["TESTING_DATASETS_PATH"]
     if test_dir_path[-1] not in ["\\", "/"]:
@@ -63,9 +62,8 @@ if __name__ == "__main__":
     test_file_path = "{}{}_{}".format(test_dir_path, data_prefix, model_to_train)
     if model_to_train == "baseline":
         test_file_path = "{}{}".format(test_dir_path, data_prefix)
-    else:
-        test_x = np.load("{}_test_x.npy".format(test_file_path))
-        test_y = np.load("{}_test_y.npy".format(test_file_path))
+    test_x = np.load("{}_test_x.npy".format(test_file_path))
+    test_y = np.load("{}_test_y.npy".format(test_file_path))
 
     def build_model(hp):
         input_layer_nodes = hp.Int('{}_input'.format(model_to_train), min_value=128, max_value=256, step=16)
