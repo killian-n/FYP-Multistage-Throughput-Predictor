@@ -69,6 +69,8 @@ if __name__ == "__main__":
         input_layer_nodes = hp.Int('{}_input'.format(model_to_train), min_value=128, max_value=256, step=16)
         add_lstm_layers = hp.Int('num_dense_layers', 0, 3)
         add_dense_layers = hp.Int('num_dense_layers', 0, 3)
+        print("Additional LSTM layers", add_lstm_layers)
+        print("Additional Dense layers", add_dense_layers)
 
         model = tf.keras.Sequential()
         model.add(tf.keras.layers.LSTM(units=input_layer_nodes, 
@@ -76,7 +78,7 @@ if __name__ == "__main__":
         model.add(tf.keras.layers.Dropout(hp.Float('input_layer_dropout', min_value=0.0, max_value=0.5, step=0.1)))
         # Tune the number of hidden LSTM layers
         for i in range(add_lstm_layers):
-            add_lstm_nodes = hp.Int('units_' + str(i), min_value=64, max_value=int(input_layer_nodes), step=8)
+            add_lstm_nodes = hp.Int('units_' + str(i), min_value=64, max_value=input_layer_nodes, step=8)
             model.add(tf.keras.layers.LSTM(units=add_lstm_nodes, 
                                 return_sequences=True))
             model.add(tf.keras.layers.Dropout(hp.Float('dropout_' + str(i), min_value=0.0, max_value=0.5, step=0.1)))
@@ -84,9 +86,9 @@ if __name__ == "__main__":
         # Tuning for addition dense layers
         for i in range(add_dense_layers):
             if add_lstm_layers:
-                add_dense_nodes = hp.Int("dense_units_"+str(i),min_value=16, max_value=int(add_lstm_nodes))
+                add_dense_nodes = hp.Int("dense_units_"+str(i),min_value=16, max_value=add_lstm_nodes)
             else:
-                add_dense_nodes = hp.Int("dense_units_"+str(i),min_value=16, max_value=int(input_layer_nodes))
+                add_dense_nodes = hp.Int("dense_units_"+str(i),min_value=16, max_value=input_layer_nodes)
             model.add(tf.keras.layers.Dense(units=add_dense_nodes,
                                 activation=hp.Choice('dense_activation_' + str(i), values=['relu', 'sigmoid'])))
             # Tune the inclusion of dropout layers
@@ -101,6 +103,7 @@ if __name__ == "__main__":
             model.add(tf.keras.layers.Dense(train_y.shape[1]))
             model.compile(optimizer=tf.keras.optimizers.Adam(hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])),
                     loss='mse')
+        model.summary()
         return model
         
 # Define the tuner
