@@ -6,13 +6,13 @@ conda activate tf
 
 cd src/data_transformation
 
-run_prefix=multivariate
-data_prefix=multivariate
-python create_datasets.py --prefix $data_prefix --include RSRQ SNR NRxRSRP CQI RSSI NRxRSRQ RSRP UL_bitrate State
+# run_prefix=multivariate
+# data_prefix=multivariate
+# python create_datasets.py --prefix $data_prefix --include RSRQ SNR NRxRSRP CQI RSSI NRxRSRQ RSRP UL_bitrate State
 
-run_prefix=univariate
-data_prefix=univariate
-python create_datasets.py --prefix $data_prefix
+# run_prefix=univariate
+# data_prefix=univariate
+# python create_datasets.py --prefix $data_prefix
 
 cd ../model_optimization
 
