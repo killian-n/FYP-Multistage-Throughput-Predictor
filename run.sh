@@ -2,8 +2,6 @@
 current_directory=$(pwd)
 find src -type d -exec cp project.env {} \;
 
-conda activate tf
-
 cd src/data_transformation
 
 # run_prefix=multivariate
