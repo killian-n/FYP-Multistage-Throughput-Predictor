@@ -92,6 +92,9 @@ class DataPreProcessor:
         if "NRxRSRQ" in self.__numeric_features:
             row = self.__df[self.__df["NRxRSRQ"]==self.__df["NRxRSRQ"].min()].index[0]
             column = self.__df.columns.get_loc("NRxRSRQ")
+            print("ROw", row)
+            print("column", column)
+            print(self.__df.iloc[row, column])
             self.__df.iloc[row, column] = 0
             self.__df.iloc[row, column] = self.__df["NRxRSRQ"].min()
         
@@ -334,9 +337,13 @@ class DataPreProcessor:
         i = 0
         while i < len(idle_periods):
             idle_len = idle_periods[i]
+            if i < len(idle_periods)-1:
+                next_val = idle_periods[i+1]
+            else:
+                next_val = idle_periods[i]
             if idle_len == 1:
                 i += 1
-            elif idle_periods[i+1] > idle_len:
+            elif next_val > idle_len:
                 i += 1
             elif idle_len >= min_period:
                 cur_index = idle_indices[i]
@@ -344,7 +351,8 @@ class DataPreProcessor:
                 self.__df.drop(period_to_remove, inplace=True)
                 i+=1
             else:
-                i += 1
+                i+=1
+        self.__df.reset_index(inplace=True)
 
     def inverse_scale(self, dataframe, is_x=True):
         # isolate numeric features
