@@ -112,7 +112,7 @@ tuner = RandomSearch(
     max_trials=max_search,
     executions_per_trial=rerun_count,
     directory='model_tuning',
-    project_name='{}_regresssion_tuning'.format(model_to_train)
+    project_name='{}_{}_regresssion_tuning'.format(data_prefix, model_to_train)
 )
 
 # Start the tuning process
