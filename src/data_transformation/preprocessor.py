@@ -20,7 +20,7 @@ sys.path.append(module_path)
 class DataPreProcessor:
     def __init__(self, dataframe, include_features=[], predict=["DL_bitrate"], use_predict=True,
                   manual_mode=False, scaler=None, scaler_file_name="univariate_scaler.sav",
-                    scale_data=False, history=10, horizon=5, create_train_test_split=False, name="univariate", balance=False):
+                    scale_data=False, history=10, horizon=5, create_train_test_split=False, name="univariate", remove_idle_periods=3):
         # Metadata
         metadata = ["Timestamp", "session", "movement_type"]
         self._name = name
@@ -29,8 +29,13 @@ class DataPreProcessor:
         self.__create_train_test_split = create_train_test_split
         self.__scale_data = scale_data
         self.__imputer = None
+        # Idle periods
+        self.__df = dataframe
+        self.__df["State"] = self.__df["State"].replace({"D": 1, "I": 0})
+        if remove_idle_periods:
+            self.remove_idle_periods(min_period=remove_idle_periods)   
         # Working dataframes
-        self.__df = dataframe[include_features+predict+metadata]
+        self.__df = self.__df[include_features+predict+metadata]
         self.__train = None
         self.__test = None
 
@@ -46,8 +51,6 @@ class DataPreProcessor:
             for i in predict:
                 if i not in self.__numeric_features:
                     self.__numeric_features.append(i)
-        if "State" in self.__numeric_features:
-            self.__df["State"] = self.__df["State"].replace({"D": 1, "I": 0})
         # Geological features
         self.__geo_features = ["Longitude", "Latitude", "ServingCell_Lon", "ServingCell_Lat"]
         self.__geo_features = [i for i in self.__geo_features if i in self.__geo_features and i in include_features]
@@ -148,9 +151,9 @@ class DataPreProcessor:
             self.__test = test_df
             # MinMaxScaler so it doesnt matter if we scale before impute and we need to scale before impute of KNNImputer
             self.__train = self.apply_scaler(self.__train,train=True)
-            self.__train = self.knn_impute(dataframe=self.__train, train=True)
+            self.__train = self.impute(dataframe=self.__train, train=True)
             self.__test =self.apply_scaler(self.__test)
-            self.__test = self.knn_impute(dataframe=self.__test)
+            self.__test = self.impute(dataframe=self.__test)
             if return_unscaled:
                 self.__train = self.inverse_scale(self.__train, is_x=True)
                 self.__test = self.inverse_scale(self.__test, is_x=True)
@@ -268,22 +271,13 @@ class DataPreProcessor:
         # IMPORTANT IMPORTANT:: IF we ever get around to trying to implement this model in practice then: The MULTISTAGE MODEL WILL HAVE TO STORE MIN VALUES FOR ALL THE FEATURES ASWELL AS THE IMPUTER
 
         if "CQI" in self.__numeric_features:
-            if train:
-                dataframe["CQI"].fillna(dataframe["CQI"].min(), inplace=True)
-            else:
-                dataframe["CQI"].fillna(self.__train["CQI"].min(), inplace=True)
+            dataframe["CQI"].fillna(-1, inplace=True)
         
         if "SNR" in self.__numeric_features:
-            if train:
-                dataframe["SNR"].fillna(dataframe["SNR"].min(), inplace=True)
-            else:
-                dataframe["SNR"].fillna(self.__train["SNR"].min(), inplace=True)
+            dataframe["SNR"].fillna(dataframe["SNR"].min()-1, inplace=True)
 
         if "RSSI" in self.__numeric_features:
-            if train:
-                dataframe["RSSI"].fillna(dataframe["RSSI"].min(), inplace=True)
-            else:
-                dataframe["RSSI"].fillna(self.__train["RSSI"].min(), inplace=True)
+            dataframe["RSSI"].fillna(self.__train["RSSI"].min()-1, inplace=True)
         # NRxRSRP and NRxRSRQ require KNN-Imputation.
         require_KNN = ["NRxRSRP", "NRxRSRQ", "RSRP", "RSRQ"]
         require_KNN = [i for i in require_KNN if i in self.__numeric_features]
@@ -326,6 +320,31 @@ class DataPreProcessor:
         dataframe[self.__features_to_scale] = scaled_data
         return dataframe
 
+    def remove_idle_periods(self, min_period=3):
+        # create a idle period count column
+        idle_time = self.__df.groupby(self.__df['State'].diff().ne(0).cumsum()).cumcount()
+        self.__df["idle"] = idle_time+1
+        # remove counts for download as its unrequired
+        self.__df.loc[(self.__df["idle"]>0) & (self.__df["State"]==1), "idle"] = 0
+        # obtain the timestamps where the idle period was greater than the minimum
+        idle_periods = self.__df[self.__df["idle"]>0]["idle"]
+        # extract the indices
+        idle_indices = idle_periods.index
+        idle_periods = idle_periods.to_list()
+        i = 0
+        while i < len(idle_periods):
+            idle_len = idle_periods[i]
+            if idle_len == 1:
+                i += 1
+            elif idle_periods[i+1] > idle_len:
+                i += 1
+            elif idle_len >= min_period:
+                cur_index = idle_indices[i]
+                period_to_remove = list(range((cur_index-idle_len)+1, cur_index+1))
+                self.__df.drop(period_to_remove, inplace=True)
+                i+=1
+            else:
+                i += 1
 
     def inverse_scale(self, dataframe, is_x=True):
         # isolate numeric features
@@ -750,18 +769,18 @@ if __name__ == "__main__":
     raw_data = pd.read_csv(config["global"]["PROJECT_PATH"]+"/Datasets/Raw/all_4G_data.csv", index_col=None)
     preprocessor = DataPreProcessor(raw_data, include_features=["RSRP", "RSRQ", "SNR", "CQI", "RSSI", "UL_bitrate",
                                                                  "State","NetworkMode", "Longitude", "Latitude", "NRxRSRQ", "NRxRSRP"], manual_mode=True)
-    preprocessor.one_hot_encode()
-    data = preprocessor.get_df()
-    data = preprocessor.apply_scaler(data, train=True)
-    data = preprocessor.knn_impute(data, train=True)
-    data = preprocessor.inverse_scale(data, is_x=True)
-    # data = preprocessor.create_averaged_features(dataframe=data)
-    data.to_csv(config["global"]["PROJECT_PATH"]+"/Datasets/unaveraged_processed_network_data.csv", index=False, encoding="utf-8")
+    # preprocessor.one_hot_encode()
+    # data = preprocessor.get_df()
+    # data = preprocessor.apply_scaler(data, train=True)
+    # data = preprocessor.knn_impute(data, train=True)
+    # data = preprocessor.inverse_scale(data, is_x=True)
+    # # data = preprocessor.create_averaged_features(dataframe=data)
+    # data.to_csv(config["global"]["PROJECT_PATH"]+"/Datasets/unaveraged_processed_network_data.csv", index=False, encoding="utf-8")
 
-    data = np.random.sample((100, 5))
-    data = np.round(data, 0)
-    scaler = MinMaxScaler((0,1))
-    scaled = scaler.fit_transform(data)
+    # data = np.random.sample((100, 5))
+    # data = np.round(data, 0)
+    # scaler = MinMaxScaler((0,1))
+    # scaled = scaler.fit_transform(data)
 
     #print(data[0:5])
     #print("before scaling")

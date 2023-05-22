@@ -18,8 +18,7 @@ if __name__ == "__main__":
                          help="List of features to included for datasets.")
     parser.add_argument('--history_window', type=int, help="Length of the history window in seconds")
     parser.add_argument('--horizon_window', type=int, help="Length of the horizon window in seconds")
-    parser.add_argument("--balance",type=bool, help="Default: False. Flag determining whether the classifier training set is balanced via upsampling.")
-
+    
     # Parse the command-line arguments
     args = parser.parse_args()
 
@@ -28,7 +27,7 @@ if __name__ == "__main__":
     history = args.history_window
     include_features = args.include
     horizon = args.horizon_window
-    balance = args.balance
+    
     if not prefix:
         print("please include a prefix for the name of the saved datasets, scaler and imputer.")
         sys.exit(1)
@@ -42,7 +41,4 @@ if __name__ == "__main__":
     if not include_features:
         include_features = []
 
-    if not balance:
-        balance = False
-
-    preprocesor = DataPreProcessor(dataframe=raw_data, name=prefix, include_features=include_features, history=history, horizon=horizon, balance=balance)
+    preprocesor = DataPreProcessor(dataframe=raw_data, name=prefix, include_features=include_features, history=history, horizon=horizon)

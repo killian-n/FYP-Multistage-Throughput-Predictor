@@ -4,20 +4,7 @@ library(caret)
 library(MASS)
 
 data <- data[,-c(which(colnames(data)=="Timestamp"))]
-
-# Example
-zero <- as.matrix(data[which(data$session==0),-c(which(colnames(data)=="session"))])
-zero <- scale(zero, center=T)
-zero_cov <- cov(zero)
-zero_cov[is.na(zero_cov)] = 0
-zero_cov
-zero_pca <- prcomp(zero_cov, center=F, scale=F)
-zero_pca$rotation
-zero_importance <- apply(abs(zero_pca$rotation), 2, which.max)
-most_important_features <- colnames(zero[,(apply(abs(zero_pca$rotation), 2,
-                                                 which.max))[c(0:10)]])
-most_important_features
-
+colnames(data)
 
 # For all Traces
 sessions <-data[,which(colnames(data)=="session")]
