@@ -14,6 +14,10 @@ run_prefix=univariate
 data_prefix=univariate
 python create_datasets.py --prefix $data_prefix
 
+cd ../model_optimization
+
+python  optimize_model.py --model baseline --data_prefix univariate
+
 # cd ../training_models
 # python.exe train_model.py --prefix $run_prefix --model "baseline" --data_prefix $data_prefix
 # python.exe train_model.py --prefix $run_prefix --model "high" --data_prefix $data_prefix
