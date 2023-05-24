@@ -3,6 +3,7 @@ import configparser
 import sys
 import numpy as np
 import tensorflow as tf
+import pickle
 from keras_tuner import RandomSearch
 config = configparser.ConfigParser()
 config.read('project.env')
@@ -65,45 +66,61 @@ if __name__ == "__main__":
     test_x = np.load("{}_test_x.npy".format(test_file_path))
     test_y = np.load("{}_test_y.npy".format(test_file_path))
 
-    def build_model(hp):
-        input_layer_nodes = hp.Int('{}_input'.format(model_to_train), min_value=128, max_value=256, step=16)
-        add_lstm_layers = hp.Int('num_dense_layers', 0, 3)
-        add_dense_layers = hp.Int('num_dense_layers', 0, 3)
-        print("Additional LSTM layers", add_lstm_layers)
-        print("Additional Dense layers", add_dense_layers)
 
+    # Getting scaler
+    scaler_dir_path = config["global"]["SAVED_OBJECTS_PATH"]
+    if scaler_dir_path[-1] not in ["\\", "/"]:
+        scaler_dir_path += "/"
+    scaler_file_path = scaler_dir_path + data_prefix + "_scaler.sav"
+    scaler = pickle.load(open(scaler_file_path, "rb"))
+
+
+    def scale(scaler, input_array, is_x=True):
+        input_shape = input_array.shape
+        if is_x:
+            input_array = scaler.transform(input_array.reshape(-1, input_array.shape[-1])).reshape(input_shape)
+        else:
+            input_array = np.squeeze(input_array).flatten()
+            transform = np.zeros((len(input_array), scaler.n_features_in_))
+            transform[:,0] = input_array
+            transform = scaler.transform(transform)
+            input_array = transform[:,0].reshape(input_shape)
+        return input_array
+
+    train_x = scale(scaler, train_x)
+    train_y = scale(scaler, train_y, is_x=False)
+    test_x = scale(scaler, test_x)
+    test_y = scale(scaler, test_y, is_x=False)
+
+    def build_model(hp):
         model = tf.keras.Sequential()
+        input_layer_name = '{}_input'.format(model_to_train)
+        input_layer_nodes = hp.Int(input_layer_name, min_value=128, max_value=256, step=16)
+        add_lstm_layers = hp.Int('num_lstm_layers', 0, 3)
+        add_dense_layers = hp.Int('num_dense_layers', 0, 3)
         model.add(tf.keras.layers.LSTM(units=input_layer_nodes, 
                             return_sequences=True, input_shape=(train_x.shape[1:])))
         model.add(tf.keras.layers.Dropout(hp.Float('input_layer_dropout', min_value=0.0, max_value=0.5, step=0.1)))
         # Tune the number of hidden LSTM layers
         for i in range(add_lstm_layers):
-            add_lstm_nodes = hp.Int('units_' + str(i), min_value=64, max_value=input_layer_nodes, step=8)
-            model.add(tf.keras.layers.LSTM(units=add_lstm_nodes, 
-                                return_sequences=True))
+            model.add(tf.keras.layers.LSTM(units=hp.Int('units_' + str(i), min_value=64, max_value=128, step=16), 
+                              return_sequences=True))
             model.add(tf.keras.layers.Dropout(hp.Float('dropout_' + str(i), min_value=0.0, max_value=0.5, step=0.1)))
         model.add(tf.keras.layers.Flatten())
-        # Tuning for addition dense layers
         for i in range(add_dense_layers):
-            if add_lstm_layers:
-                add_dense_nodes = hp.Int("dense_units_"+str(i),min_value=16, max_value=add_lstm_nodes)
-            else:
-                add_dense_nodes = hp.Int("dense_units_"+str(i),min_value=16, max_value=input_layer_nodes)
-            model.add(tf.keras.layers.Dense(units=add_dense_nodes,
-                                activation=hp.Choice('dense_activation_' + str(i), values=['relu', 'sigmoid'])))
-            # Tune the inclusion of dropout layers
+            model.add(tf.keras.layers.Dense(units=hp.Int('dense_units_' + str(i), min_value=16, max_value=64, step=8),
+                            activation=hp.Choice('dense_activation_' + str(i), values=['relu', 'sigmoid'])))
+             # Tune the inclusion of dropout layers
             model.add(tf.keras.layers.Dropout(hp.Float('dense_dropout_' + str(i), min_value=0.0, max_value=0.5, step=0.1)))
-
         if model_to_train == "classifier":
             model.add(tf.keras.layers.Dense(3, activation='softmax'))
-            model.compile(optimizer=tf.keras.optimizers.Adam(hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])),
+            model.compile(optimizer=tf.keras.optimizers.Adam(hp.Choice('learning_rate_classifier', values=[1e-2, 1e-3, 1e-4])),
                   loss='categorical_crossentropy',
                   metrics=['accuracy'])
         else:
             model.add(tf.keras.layers.Dense(train_y.shape[1]))
             model.compile(optimizer=tf.keras.optimizers.Adam(hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])),
                     loss='mse')
-        model.summary()
         return model
         
 # Define the tuner
