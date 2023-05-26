@@ -14,7 +14,7 @@ cd src/data_transformation
 
 cd ../model_optimization
 
-python  optimize_model.py --model baseline --data_prefix univariate
+python  optimize_model.py --model baseline --data_prefix multivariate
 
 # cd ../training_models
 # python.exe train_model.py --prefix $run_prefix --model "baseline" --data_prefix $data_prefix

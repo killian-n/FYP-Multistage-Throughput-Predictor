@@ -8,7 +8,7 @@ call %python_environment% tf
 
 set data_prefix="univariate"
 cd src\model_optimization
-python.exe optimize_model.py --model baseline --data_prefix %data_prefix%
+python.exe optimize_model.py --model classifier --data_prefix %data_prefix%
 
 @REM cd src\data_transformation
 @REM python.exe create_datasets.py --prefix %data_prefix% --include RSRQ SNR NRxRSRP State NetworkMode
