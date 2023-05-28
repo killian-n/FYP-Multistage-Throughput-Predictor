@@ -6,9 +6,18 @@ set "PYTHONPATH=%PYTHONPATH%;%SCRIPT_DIR%"
 for /r %SCRIPT_DIR%"\src" %%i in (.) do @copy %SCRIPT_DIR%"project.env" "%%i" > nul
 call %python_environment% tf
 
-set data_prefix="univariate"
 cd src\model_optimization
-python.exe optimize_model.py --model classifier --data_prefix %data_prefix%
+
+set data_prefix="multivariate"
+set run_prefix="multivariate"
+python.exe create_datasets.py --prefix $data_prefix --include RSRQ SNR NRxRSRP CQI RSSI NRxRSRQ RSRP UL_bitrate State
+
+set data_prefix="univariate"
+set run_prefix="univariate"
+python.exe create_datasets.py --prefix $data_prefix
+
+cd src\model_optimization
+python.exe optimize_model.py --model low --data_prefix %data_prefix%
 
 @REM cd src\data_transformation
 @REM python.exe create_datasets.py --prefix %data_prefix% --include RSRQ SNR NRxRSRP State NetworkMode
