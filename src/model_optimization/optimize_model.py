@@ -88,9 +88,10 @@ if __name__ == "__main__":
         return input_array
 
     train_x = scale(scaler, train_x)
-    train_y = scale(scaler, train_y, is_x=False)
     test_x = scale(scaler, test_x)
-    test_y = scale(scaler, test_y, is_x=False)
+    if model_to_train!="classifier":
+        train_y = scale(scaler, train_y, is_x=False)
+        test_y = scale(scaler, test_y, is_x=False)
 
     def build_model(hp):
         model = tf.keras.Sequential()
