@@ -8,17 +8,17 @@ call %python_environment% tf
 
 cd src\data_transformation
 
-set data_prefix="multivariate"
-set run_prefix="multivariate"
-python.exe create_datasets.py --prefix %data_prefix% --include RSRQ SNR NRxRSRP CQI RSSI NRxRSRQ RSRP UL_bitrate State
+@REM set data_prefix="multivariate"
+@REM set run_prefix="multivariate"
+@REM python.exe create_datasets.py --prefix %data_prefix% --include RSRQ SNR NRxRSRP CQI RSSI NRxRSRQ RSRP UL_bitrate State
 
-set data_prefix="univariate"
-set run_prefix="univariate"
-python.exe create_datasets.py --prefix %data_prefix%
+@REM set data_prefix="univariate"
+@REM set run_prefix="univariate"
+@REM python.exe create_datasets.py --prefix %data_prefix%
 
 cd ..\model_optimization
-set data_prefix="multivariate"
-python.exe optimize_model.py --model low --data_prefix %data_prefix%
+set data_prefix="univariate"
+python.exe optimize_model.py --model classifier --data_prefix %data_prefix%
 
 @REM cd src\data_transformation
 @REM python.exe create_datasets.py --prefix %data_prefix% --include RSRQ SNR NRxRSRP State NetworkMode
