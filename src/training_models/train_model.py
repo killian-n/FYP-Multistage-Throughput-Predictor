@@ -20,8 +20,8 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, help='Select which model to train. Values can be one of: [baseline, low, medium , high, classifier]')
     parser.add_argument('--data_prefix', type=str,
                          help="Optional argument. The file prefix of the saved train and test datasets found in Datasets directory. \n Assumed to be same as prefix if not provided")
-    parser.add_argument('--use_balanced', type=bool, help="Optional argument. Specifies if baseline or classifier model should be trained on a balanced dataset. Default is False.")
-    parser.add_argument('--standardise_models', type=bool, help="Optional argument. Specifies whether all models should use the same parameter design. Default is True")
+    parser.add_argument('--use_balanced', action=argparse.BooleanOptionalAction, help="Optional argument. Specifies if baseline or classifier model should be trained on a balanced dataset. Default is False.")
+    parser.add_argument('--standardise', action=argparse.BooleanOptionalAction, help="Optional argument. Specifies whether all models should use the same parameter design. Default is False")
     parser.add_argument('--size_constraint', type=int, help="Optional argument. Current options include [3, 15]")
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -31,8 +31,10 @@ if __name__ == "__main__":
     model_to_train = args.model
     data_prefix = args.data_prefix
     use_balanced = args.use_balanced
-    standardise = args.standardise_models
+    standardise = args.standardise
     size_constraint = args.size_constraint
+
+    print("UP HERE ", standardise)
 
     if not model_prefix:
         print("Please provide a str prefix for the filename of the saved model and its datasets.")
@@ -56,9 +58,6 @@ if __name__ == "__main__":
     if size_constraint not in [0,3,15]:
         size_constraint=0
 
-    if standardise is None:
-        standardise = True
-
     if standardise and size_constraint:
         print("overriding standardise with size_constraint")
         standardise = False
@@ -66,7 +65,6 @@ if __name__ == "__main__":
     model_name = model_prefix + "_" + model_to_train
     if model_to_train == "baseline":
         if standardise or size_constraint==15:
-            print("size constraint 1_5Mb")
             model = StandarizedBaseline(model_name=model_name)
         elif size_constraint==3:
             model = Baseline3Mb(model_name=model_name)

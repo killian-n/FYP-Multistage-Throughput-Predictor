@@ -18,12 +18,13 @@ from data_transformation.preprocessor import DataPreProcessor
 from helper_functions.timer import TimingCallback
 
 class ThroughputClassifier(ModelFramework):
-    def __init__(self, raw_data=pd.DataFrame(), preprocessor=None, model_name="univariate_classifier", sparse=False):
+    def __init__(self, raw_data=pd.DataFrame(), preprocessor=None, model_name="univariate_classifier", sparse=False, univariate=True):
         super().__init__()
         self._raw_data = raw_data
         self._model_name = model_name
         self._sparse = sparse
         self._preprocessor = preprocessor
+        self._univariate = univariate
 
     def pre_process(self, include_features=[], predict=["DL_bitrate"], use_predict=True, manual_mode=False, scaler=None, history=10, horizon=5, scale_data=True):
         if not self._preprocessor:
@@ -36,16 +37,23 @@ class ThroughputClassifier(ModelFramework):
         self._test_x, self._test_y = self._preprocessor.get_label_predictor_test(sparse=self._sparse)
         if self._sparse:
             self._train_y = self._train_y.T
-            print("CLASSIFIER Y train", self._train_y)
-            print(self._train_y.shape)
             self._test_y = self._test_y.T
-            print("CLASSIFIER Y test", self._test_y)
 
     def __call__(self, inputs):
+        if self._univariate:
+            return self._model(inputs[:,:,0].reshape((inputs.shape[0],inputs.shape[1], 1)))
         return self._model(inputs)
+    
+    def predict(self, inputs):
+        if self._univariate:
+            return self._model.predict(inputs[:,:,0].reshape((inputs.shape[0],inputs.shape[1], 1)))
+        return self._model.predict(inputs)
 
     def build_model(self, loss="categorical_crossentropy"):
-        print("THE LOSS FUNCTION", loss)
+        if self._univariate:
+            self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(128, input_shape=(None, self._train_x.shape[1], 1), return_sequences=True))
+        else:
+            self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(128, input_shape=(self._train_x.shape[1:]), return_sequences=True))
         self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(128, input_shape=(self._train_x.shape[1:]), return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.3))
         self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(64, input_shape=(self._train_x.shape[1:]),return_sequences=True))
@@ -69,21 +77,28 @@ class ThroughputClassifier(ModelFramework):
         self._checkpointer = ModelCheckpoint(filepath='{}src/saved.objects/{}.hdf5'.format(project_path, self._model_name), verbose = 1, save_best_only=True)
         if self._preprocessor:
             self._class_weights = self._preprocessor.get_class_weights()
-        self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size,
-         validation_split=validation_split, verbose=1,class_weight=self._class_weights, callbacks=[self._checkpointer, self._tensorboard, timer])
+
+        if self._univariate:
+            self._model.fit(self._train_x[:,:,0].reshape((self._train_x.shape[0],self._train_x.shape[1], 1)), self._train_y, epochs=epochs, batch_size=batch_size,
+                validation_split=validation_split, verbose=1,class_weight=self._class_weights, callbacks=[self._checkpointer, self._tensorboard, timer])
+        else:
+            self._model.fit(self._train_x, self._train_y, epochs=epochs, batch_size=batch_size,
+                validation_split=validation_split, verbose=1,class_weight=self._class_weights, callbacks=[self._checkpointer, self._tensorboard, timer])
         self._train_time = sum(timer.logs)
 
     def test(self):
         trainable_params = count_params(self._model.trainable_weights)
         non_trainable_params = count_params(self._model.non_trainable_weights)
         predict_start = time()
-        predicted_y_prob = self._model.predict(self._test_x)
+        predicted_y_prob = self.predict(self._test_x)
         predicted_y = np.zeros_like(predicted_y_prob)
         predicted_y[np.arange(len(predicted_y_prob)), predicted_y_prob.argmax(axis=1)] = 1
-        print("PREDICTIONS", predicted_y)
         time_to_predict = time()-predict_start
         time_to_predict = time_to_predict/self._test_y.shape[0]
-        test = self._model.evaluate(self._test_x, self._test_y, batch_size=100)
+        if self._univariate:
+            test = self._model.evaluate(self._test_x[:,:,0].reshape((self._test_x.shape[0],self._test_x.shape[1], 1)), self._test_y, batch_size=100)
+        else:
+            test = self._model.evaluate(self._test_x, self._test_y, batch_size=100)
         accuracy = test[1]
         model_size = self.get_model_size()
         self._results = [self._model_name, trainable_params, non_trainable_params, self._train_time, time_to_predict, "n/a", "n/a", "n/a", "n/a",model_size, accuracy]

@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 import pickle
 from keras_tuner import RandomSearch
+from keras.callbacks import TensorBoard
 config = configparser.ConfigParser()
 config.read('project.env')
 module_path = config['global']['MODULE_PATH']
@@ -136,3 +137,10 @@ tuner = RandomSearch(
 
 # Start the tuning process
 tuner.search(train_x, train_y, epochs=70, validation_data=(test_x, test_y))
+
+# Retrieve the tuner's logs
+# print("====================")
+# print("{} {} Best Model".format(data_prefix, model_to_train))
+# print("====================\n")
+# tuner_results = tuner.results_summary(1)
+# print("\n===============\n===============\n")

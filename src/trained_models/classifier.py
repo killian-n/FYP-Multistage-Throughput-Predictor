@@ -11,18 +11,23 @@ from trained_models.trained_framework import TrainedFramework
 
 
 class TrainedClassifier(TrainedFramework):
-    def __init__(self, model_name="univariate_classifier"):
+    def __init__(self, model_name="univariate_classifier", univariate=True):
         super().__init__()
         self._model_name = model_name
+        self._univariate = univariate
 
     def __call__(self, inputs):
         inputs = self.scale(inputs)
+        if self._univariate:
+            return self._model(inputs[:,:,0].reshape((inputs.shape[0],inputs.shape[1], 1)))
         predictions = self._model(inputs)
         return predictions
     
-    def predict(self, x_sequences):
-        x_sequences = self.scale(x_sequences)
-        predictions = self._model.predict(x_sequences)
+    def predict(self, inputs):
+        inputs = self.scale(inputs)
+        if self._univariate:
+            return self._model.predict(inputs[:,:,0].reshape((inputs.shape[0],inputs.shape[1], 1)))
+        predictions = self._model.predict(inputs)
         return predictions
 
     def test(self):
@@ -30,7 +35,10 @@ class TrainedClassifier(TrainedFramework):
         predicted_y = self.predict(self._test_x)
         time_to_predict = time()-predict_start
         time_to_predict = time_to_predict/self._test_y.shape[0]
-        test = self._model.evaluate(self.scale(self._test_x), self._test_y, batch_size=100)
+        if self._univariate:
+            test = self._model.evaluate(self.scale(self._test_x).reshape((self._test_x.shape[0],self._test_x.shape[1], 1)), self._test_y, batch_size=100)
+        else:
+            test = self._model.evaluate(self.scale(self._test_x), self._test_y, batch_size=100)
         accuracy = test[1]
         model_size = self.get_model_size()
         print(self._model_name)
