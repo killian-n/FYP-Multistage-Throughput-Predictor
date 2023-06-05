@@ -31,6 +31,7 @@ class TrainedBaseline(TrainedFramework):
         model_size = self.get_model_size()
         self._results = [self._model_name, time_to_predict, mse, mae, mean_residuals, mape, model_size]
         self.write_to_csv()
+        self.write_datasets_to_csv(predicted_y)
         self.save_output(predicted_y, self._model_name+"_predicted_y")
         self.save_output(self._test_y, self._model_name+"_true_y")
         self.__class_tests(self._low_test_x, self._low_test_y, "low")
@@ -54,6 +55,7 @@ class TrainedBaseline(TrainedFramework):
         self._results[4] = mean_residuals
         self._results[5] = mape
         self.write_to_csv()
+        self.write_datasets_to_csv(predicted_y, x, y, model_name)
         self.save_output(predicted_y, model_name+"_predicted_y")
         self.save_output(y, model_name+"_true_y")
     

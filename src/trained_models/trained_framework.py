@@ -1,5 +1,6 @@
 import warnings
 import tensorflow as tf
+import pandas as pd
 from abc import ABC, abstractclassmethod
 import os
 import numpy as np
@@ -74,10 +75,10 @@ class TrainedFramework(ABC):
         self._scaler = pickle.load(open(filepath, "rb"))
     
     def save_output(self,output,filename="DEFAULT_NAME_OUTPUTS"):
-        project_path = config["global"]["PROJECT_PATH"]
-        if project_path[-1] not in ["\\", "/"]:
-            project_path += "/"
-        filename = project_path+"Datasets/Final_Outputs/"+filename
+        model_output_path = config["global"]["MODEL_OUTPUT_PATH"]
+        if model_output_path[-1] not in ["\\", "/"]:
+            model_output_path += "/"
+        filename = model_output_path+filename
         np.save(filename, output)
 
     def get_model_size(self):
@@ -99,6 +100,30 @@ class TrainedFramework(ABC):
         with open(csv_file, "a", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(self._results)
+
+    def write_datasets_to_csv(self, predicted, input=None, true=None, filename=None):
+        if not filename:
+            filename = self._model_name
+        model_output_path = config["global"]["MODEL_OUTPUT_PATH"]
+        if model_output_path[-1] not in ["\\", "/"]:
+            model_output_path += "/"
+        df = pd.DataFrame()
+        if not input:
+            x = self._test_x.squeeze()
+        else:
+            x = input.squeeze()
+        if not true:
+            true = pd.Series(self._test_y.squeeze().tolist())
+        else:
+            true = pd.Series(true.squeeze().tolist())
+        predicted = pd.Series(predicted.squeeze().tolist())
+        x_list = x.tolist()
+        input_values = x[:,-1]
+        df["input_sequence"] = pd.Series(x_list)
+        df["input_value"] = input_values
+        df["true"] = true
+        df["predicted"] = predicted
+        df.to_csv(model_output_path+"{}.csv".format(filename), encoding="utf-8", index=False)
 
     def inverse_scale_predictions(self, results):
         results_shape = results.shape

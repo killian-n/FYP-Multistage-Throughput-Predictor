@@ -31,6 +31,7 @@ class TrainedRegression(TrainedFramework):
         self.write_to_csv()
         self.save_output(predicted_y, self._model_name+"_predicted_y")
         self.save_output(self._test_y, self._model_name+"_true_y")
+        self.write_datasets_to_csv(predicted_y)
 
     def get_mape(self, true, predicted, epsilon=50):
         denominator = np.squeeze(true) + epsilon
