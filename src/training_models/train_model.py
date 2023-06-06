@@ -34,8 +34,6 @@ if __name__ == "__main__":
     standardise = args.standardise
     size_constraint = args.size_constraint
 
-    print("UP HERE ", standardise)
-
     if not model_prefix:
         print("Please provide a str prefix for the filename of the saved model and its datasets.")
         sys.exit(1)

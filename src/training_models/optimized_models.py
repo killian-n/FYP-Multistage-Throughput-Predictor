@@ -49,7 +49,7 @@ class optimizedBaseline(BaselineLSTM):
 
 class optimizedClassifierModel(ThroughputClassifier):
     def build_model(self, loss="categorical_crossentropy"):
-        self._model.add(tf.keras.layers.LSTM(160, input_shape=(self._train_x.shape[1], self._train_x.shape[2]), return_sequences=True))
+        self._model.add(tf.keras.layers.LSTM(160, input_shape=(self._train_x.shape[1], 1), return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(.2))
         self._model.add(tf.keras.layers.LSTM(128,return_sequences=True))
         self._model.add(tf.keras.layers.Dropout(0.0))

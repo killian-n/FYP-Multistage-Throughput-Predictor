@@ -52,6 +52,7 @@ class ThroughputClassifier(ModelFramework):
     def build_model(self, loss="categorical_crossentropy"):
         if self._univariate:
             self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(128, input_shape=(None, self._train_x.shape[1], 1), return_sequences=True))
+            print("in here")
         else:
             self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(128, input_shape=(self._train_x.shape[1:]), return_sequences=True))
         self._model.add(tf.compat.v1.keras.layers.CuDNNLSTM(128, input_shape=(self._train_x.shape[1:]), return_sequences=True))
@@ -78,7 +79,9 @@ class ThroughputClassifier(ModelFramework):
         if self._preprocessor:
             self._class_weights = self._preprocessor.get_class_weights()
 
+        print(self._univariate)
         if self._univariate:
+            print("shape", self._train_x[:,:,0].reshape((self._train_x.shape[0],self._train_x.shape[1], 1)).shape)
             self._model.fit(self._train_x[:,:,0].reshape((self._train_x.shape[0],self._train_x.shape[1], 1)), self._train_y, epochs=epochs, batch_size=batch_size,
                 validation_split=validation_split, verbose=1,class_weight=self._class_weights, callbacks=[self._checkpointer, self._tensorboard, timer])
         else:
