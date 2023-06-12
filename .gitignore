@@ -26,3 +26,4 @@ Own Papers/Undergraduate Paper/Images
 .RData
 .Rhistory
 Datasets/Final_Outputs/*.csv
+Datasets/Training/
