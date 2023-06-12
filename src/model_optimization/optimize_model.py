@@ -136,11 +136,11 @@ tuner = RandomSearch(
 )
 
 # Start the tuning process
-tuner.search(train_x, train_y, epochs=70, validation_data=(test_x, test_y))
+# tuner.search(train_x, train_y, epochs=70, validation_data=(test_x, test_y))
 
 # Retrieve the tuner's logs
-# print("====================")
-# print("{} {} Best Model".format(data_prefix, model_to_train))
-# print("====================\n")
-# tuner_results = tuner.results_summary(1)
-# print("\n===============\n===============\n")
+print("====================")
+print("{} {} Best Model".format(data_prefix, model_to_train))
+print("====================\n")
+tuner_results = tuner.results_summary(1)
+print("\n===============\n===============\n")
