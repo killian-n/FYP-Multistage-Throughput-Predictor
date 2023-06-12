@@ -25,5 +25,4 @@ run.bat
 Own Papers/Undergraduate Paper/Images
 .RData
 .Rhistory
-Datasets/Testing/
-Datasets/Final_Outputs/
+Datasets/Final_Outputs/*.csv
