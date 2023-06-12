@@ -55,7 +55,7 @@ class TrainedBaseline(TrainedFramework):
         self._results[4] = mean_residuals
         self._results[5] = mape
         self.write_to_csv()
-        self.write_datasets_to_csv(predicted_y, x, y, model_name)
+        self.write_datasets_to_csv(predicted_y, x[:,:,0], y, model_name)
         self.save_output(predicted_y, model_name+"_predicted_y")
         self.save_output(y, model_name+"_true_y")
     

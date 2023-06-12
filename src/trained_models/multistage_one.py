@@ -108,17 +108,17 @@ class MultistageOne:
         low_test_x, low_test_y = self._low_tp_model.get_test()
         low_predicted = self.predict(low_test_x)
         self.save_output(low_predicted, self._model_name+"_ms_low_predicted_y")
-        self.write_datasets_to_csv(low_predicted, low_test_x, low_test_y, self._model_name+"_ms_low")
+        self.write_datasets_to_csv(low_predicted, low_test_x[:,:,0], low_test_y, self._model_name+"_ms_low")
         
         medium_test_x, medium_test_y = self._medium_tp_model.get_test()
         medium_predicted = self.predict(medium_test_x)
         self.save_output(medium_predicted, self._model_name+"_ms_medium_predicted_y")
-        self.write_datasets_to_csv(medium_predicted, medium_test_x, medium_test_y, self._model_name+"_ms_medium")
+        self.write_datasets_to_csv(medium_predicted, medium_test_x[:,:,0], medium_test_y, self._model_name+"_ms_medium")
 
         high_test_x, high_test_y = self._high_tp_model.get_test()
         high_predicted = self.predict(high_test_x)
         self.save_output(high_predicted, self._model_name+"_ms_high_predicted_y")
-        self.write_datasets_to_csv(high_predicted, high_test_x, high_test_y, self._model_name+"_ms_high")
+        self.write_datasets_to_csv(high_predicted, high_test_x[:,:,0], high_test_y, self._model_name+"_ms_high")
         
     def get_performance_metrics(self):
         return self._results
@@ -215,18 +215,18 @@ class MultistageOne:
         self._test_x = x
         self._test_y = y
 
-    def write_datasets_to_csv(self, predicted, input=None, true=None, filename=None):
+    def write_datasets_to_csv(self, predicted, input=np.array([]), true=np.array([]), filename=None):
         if not filename:
             filename = self._model_name
         model_output_path = config["global"]["MODEL_OUTPUT_PATH"]
         if model_output_path[-1] not in ["\\", "/"]:
             model_output_path += "/"
         df = pd.DataFrame()
-        if not input:
-            x = self._test_x.squeeze()
+        if not np.any(input):
+            x = self._test_x[:,:,0].squeeze()
         else:
             x = input.squeeze()
-        if not true:
+        if not np.any(true):
             true = pd.Series(self._test_y.squeeze().tolist())
         else:
             true = pd.Series(true.squeeze().tolist())

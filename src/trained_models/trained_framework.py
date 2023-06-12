@@ -101,18 +101,18 @@ class TrainedFramework(ABC):
             writer = csv.writer(f)
             writer.writerow(self._results)
 
-    def write_datasets_to_csv(self, predicted, input=None, true=None, filename=None):
+    def write_datasets_to_csv(self, predicted, input=np.array([]), true=np.array([]), filename=None):
         if not filename:
             filename = self._model_name
         model_output_path = config["global"]["MODEL_OUTPUT_PATH"]
         if model_output_path[-1] not in ["\\", "/"]:
             model_output_path += "/"
         df = pd.DataFrame()
-        if not input:
-            x = self._test_x.squeeze()
+        if not np.any(input):
+            x = self._test_x[:,:,0].squeeze()
         else:
             x = input.squeeze()
-        if not true:
+        if not np.any(true):
             true = pd.Series(self._test_y.squeeze().tolist())
         else:
             true = pd.Series(true.squeeze().tolist())

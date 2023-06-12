@@ -36,7 +36,7 @@ class TrainedClassifier(TrainedFramework):
         time_to_predict = time()-predict_start
         time_to_predict = time_to_predict/self._test_y.shape[0]
         if self._univariate:
-            test = self._model.evaluate(self.scale(self._test_x).reshape((self._test_x.shape[0],self._test_x.shape[1], 1)), self._test_y, batch_size=100)
+            test = self._model.evaluate(self.scale(self._test_x)[:,:,0].reshape((self._test_x.shape[0],self._test_x.shape[1], 1)), self._test_y, batch_size=100)
         else:
             test = self._model.evaluate(self.scale(self._test_x), self._test_y, batch_size=100)
         accuracy = test[1]
@@ -46,7 +46,7 @@ class TrainedClassifier(TrainedFramework):
         self.write_to_csv()
         self.save_output(predicted_y, self._model_name+"_predicted_y")
         self.save_output(self._test_y, self._model_name+"_true_y")
-        self.write_datasets_to_csv(predicted_y)
+        self.write_datasets_to_csv(predicted_y, self._test_x[:,:,0])
 
     def set_test(self, test_x, test_y, loss="categorical_crossentropy"):
         self._test_x = test_x
