@@ -25,7 +25,5 @@ run.bat
 Own Papers/Undergraduate Paper/Images
 .RData
 .Rhistory
-src/saved.objects/
-Datasets/Training/
 Datasets/Testing/
 Datasets/Final_Outputs/
