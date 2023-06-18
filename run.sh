@@ -17,7 +17,7 @@ cd src/data_transformation
 # python  optimize_model.py --model baseline --data_prefix multivariate
 
 cd ../training_models
-run_prefix=multivariate
+run_prefix=standardised
 data_prefix=multivariate
 python.exe train_model.py --prefix $run_prefix --model "baseline" --data_prefix $data_prefix
 python.exe train_model.py --prefix $run_prefix --model "high" --data_prefix $data_prefix
@@ -31,7 +31,7 @@ python.exe test_model.py --model_prefix $run_prefix --model "multiOne" --data_pr
 python.exe test_model.py --model_prefix $run_prefix --model "multiAll" --data_prefix $data_prefix
 
 cd ../training_models
-run_prefix=univariate
+run_prefix=standardised
 data_prefix=univariate
 python.exe train_model.py --prefix $run_prefix --model "baseline" --data_prefix $data_prefix
 python.exe train_model.py --prefix $run_prefix --model "high" --data_prefix $data_prefix
