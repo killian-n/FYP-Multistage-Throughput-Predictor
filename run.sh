@@ -58,7 +58,7 @@ python test_model.py --model_prefix $run_prefix --model "multiOne" --data_prefix
 python test_model.py --model_prefix $run_prefix --model "multiAll" --data_prefix $data_prefix
 
 cd ../training_models
-run_prefix=univariate
+run_prefix=standardise
 data_prefix=univariate
 python train_model.py --prefix $run_prefix --model "baseline" --data_prefix $data_prefix --standardise
 python train_model.py --prefix $run_prefix --model "high" --data_prefix $data_prefix --standardise
