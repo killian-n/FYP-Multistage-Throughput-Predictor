@@ -54,7 +54,7 @@ class BaselineLSTM(ModelFramework):
         self.set_input_shape()
         self.set_output_shape()
 
-    def train(self, epochs=60, batch_size=32, validation_split=0.2):
+    def train(self, epochs=70, batch_size=32, validation_split=0.2):
         project_path = config["global"]["PROJECT_PATH"]
         if project_path[-1] not in ["\\", "/"]:
             project_path += "/"
