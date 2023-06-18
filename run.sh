@@ -17,6 +17,33 @@ cd src/data_transformation
 # python  optimize_model.py --model baseline --data_prefix multivariate 
 
 cd ../training_models
+run_prefix=multivariate
+data_prefix=multivariate
+python train_model.py --prefix $run_prefix --model "baseline" --data_prefix $data_prefix
+python train_model.py --prefix $run_prefix --model "high" --data_prefix $data_prefix
+python train_model.py --prefix $run_prefix --model "medium" --data_prefix $data_prefix
+python train_model.py --prefix $run_prefix --model "low" --data_prefix $data_prefix
+python train_model.py --prefix $run_prefix --model "classifier" --data_prefix $data_prefix
+
+cd ../trained_models
+python test_model.py --model_prefix $run_prefix --model "baseline" --data_prefix $data_prefix
+python test_model.py --model_prefix $run_prefix --model "multiOne" --data_prefix $data_prefix
+python test_model.py --model_prefix $run_prefix --model "multiAll" --data_prefix $data_prefix
+
+cd ../training_models
+run_prefix=univariate
+data_prefix=univariate
+python train_model.py --prefix $run_prefix --model "baseline" --data_prefix $data_prefix
+python train_model.py --prefix $run_prefix --model "high" --data_prefix $data_prefix
+python train_model.py --prefix $run_prefix --model "medium" --data_prefix $data_prefix
+python train_model.py --prefix $run_prefix --model "low" --data_prefix $data_prefix
+python train_model.py --prefix $run_prefix --model "classifier" --data_prefix $data_prefix
+cd ../trained_models
+python test_model.py --model_prefix $run_prefix --model "baseline" --data_prefix $data_prefix
+python test_model.py --model_prefix $run_prefix --model "multiOne" --data_prefix $data_prefix
+python test_model.py --model_prefix $run_prefix --model "multiAll" --data_prefix $data_prefix
+
+cd ../training_models
 run_prefix=standardised
 data_prefix=multivariate
 python train_model.py --prefix $run_prefix --model "baseline" --data_prefix $data_prefix --standardise
@@ -31,7 +58,7 @@ python test_model.py --model_prefix $run_prefix --model "multiOne" --data_prefix
 python test_model.py --model_prefix $run_prefix --model "multiAll" --data_prefix $data_prefix
 
 cd ../training_models
-run_prefix=standardised
+run_prefix=univariate
 data_prefix=univariate
 python train_model.py --prefix $run_prefix --model "baseline" --data_prefix $data_prefix --standardise
 python train_model.py --prefix $run_prefix --model "high" --data_prefix $data_prefix --standardise
@@ -40,7 +67,6 @@ python train_model.py --prefix $run_prefix --model "low" --data_prefix $data_pre
 python train_model.py --prefix $run_prefix --model "classifier" --data_prefix $data_prefix --standardise
 
 cd ../trained_models
-python test_model.py --model_prefix $run_prefix --model "baseline" --data_prefix $data_prefix
+python test_model.py --model_prefix $run_prefix --model "baseline" --data_prefix $data_prefix 
 python test_model.py --model_prefix $run_prefix --model "multiOne" --data_prefix $data_prefix
 python test_model.py --model_prefix $run_prefix --model "multiAll" --data_prefix $data_prefix
-
