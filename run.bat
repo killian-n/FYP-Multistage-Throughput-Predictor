@@ -22,6 +22,20 @@ cd src\data_transformation
 @REM python.exe -Wignore optimize_model.py --model classifier --data_prefix %data_prefix%
 @REM python.exe -Wignore optimize_model.py --model high --data_prefix %data_prefix%
 
+@REM cd ..\training_models
+@REM set data_prefix="multivariate"
+@REM set run_prefix="multivariate"
+@REM python.exe train_model.py --prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+@REM python.exe train_model.py --prefix %run_prefix% --model "high" --data_prefix %data_prefix%
+@REM python.exe train_model.py --prefix %run_prefix% --model "medium" --data_prefix %data_prefix%
+@REM python.exe train_model.py --prefix %run_prefix% --model "low" --data_prefix %data_prefix%
+@REM python.exe train_model.py --prefix %run_prefix% --model "classifier" --data_prefix %data_prefix%
+
+@REM cd ..\trained_models
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "multiOne" --data_prefix %data_prefix%
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "multiAll" --data_prefix %data_prefix%
+
 cd ..\training_models
 set data_prefix="univariate"
 set run_prefix="univariate"
@@ -37,17 +51,31 @@ python.exe test_model.py --model_prefix %run_prefix% --model "multiOne" --data_p
 python.exe test_model.py --model_prefix %run_prefix% --model "multiAll" --data_prefix %data_prefix%
 
 cd ..\training_models
-set data_prefix="multivariate"
-set run_prefix="multivariate"
-python.exe train_model.py --prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
-python.exe train_model.py --prefix %run_prefix% --model "high" --data_prefix %data_prefix%
-python.exe train_model.py --prefix %run_prefix% --model "medium" --data_prefix %data_prefix%
-python.exe train_model.py --prefix %run_prefix% --model "low" --data_prefix %data_prefix%
-python.exe train_model.py --prefix %run_prefix% --model "classifier" --data_prefix %data_prefix%
+@REM set data_prefix="multivariate"
+@REM set run_prefix="standardised"
+@REM python.exe train_model.py --prefix %run_prefix% --model "baseline" --data_prefix %data_prefix% --standardise
+@REM python.exe train_model.py --prefix %run_prefix% --model "high" --data_prefix %data_prefix% --standardise
+@REM python.exe train_model.py --prefix %run_prefix% --model "medium" --data_prefix %data_prefix% --standardise
+@REM python.exe train_model.py --prefix %run_prefix% --model "low" --data_prefix %data_prefix% --standardise
+@REM python.exe train_model.py --prefix %run_prefix% --model "classifier" --data_prefix %data_prefix% --standardise
 
-cd ..\trained_models
-python.exe test_model.py --model_prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
-python.exe test_model.py --model_prefix %run_prefix% --model "multiOne" --data_prefix %data_prefix%
-python.exe test_model.py --model_prefix %run_prefix% --model "multiAll" --data_prefix %data_prefix%
+@REM cd ..\trained_models
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "multiOne" --data_prefix %data_prefix%
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "multiAll" --data_prefix %data_prefix%
+
+@REM cd ..\training_models
+@REM set data_prefix="univariate"
+@REM set run_prefix="standardised"
+@REM python.exe train_model.py --prefix %run_prefix% --model "baseline" --data_prefix %data_prefix% --standardise
+@REM python.exe train_model.py --prefix %run_prefix% --model "high" --data_prefix %data_prefix% --standardise
+@REM python.exe train_model.py --prefix %run_prefix% --model "medium" --data_prefix %data_prefix% --standardise
+@REM python.exe train_model.py --prefix %run_prefix% --model "low" --data_prefix %data_prefix% --standardise
+@REM python.exe train_model.py --prefix %run_prefix% --model "classifier" --data_prefix %data_prefix% --standardise
+
+@REM cd ..\trained_models
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "baseline" --data_prefix %data_prefix%
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "multiOne" --data_prefix %data_prefix%
+@REM python.exe test_model.py --model_prefix %run_prefix% --model "multiAll" --data_prefix %data_prefix%
 
 cd ..\..
